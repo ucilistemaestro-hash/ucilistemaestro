@@ -19,6 +19,7 @@ import {
   Mail,
   School,
   ShieldCheck,
+  UserCog,
   Users,
 } from "lucide-react";
 
@@ -57,6 +58,13 @@ const moduli = [
       "Profesori i korisnički pristup.",
     putanja: "/admin/profesori",
     Ikona: GraduationCap,
+  },
+  {
+    naziv: "Administratori",
+    opis:
+      "Administratorski računi i pristup aplikaciji.",
+    putanja: "/admin/administratori",
+    Ikona: UserCog,
   },
   {
     naziv: "Učionice",
@@ -274,7 +282,8 @@ export default function AdminPage() {
 
           <p className="mt-3 text-[16px] leading-7 text-[#66717d]">
             Upravljajte programima, skupinama,
-            polaznicima, profesorima, učionicama,
+            polaznicima, profesorima,
+            administratorima, učionicama,
             rasporedom i obavijestima Učilišta
             Maestro.
           </p>
