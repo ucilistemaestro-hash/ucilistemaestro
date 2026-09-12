@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0b0b0d;
-  --foreground: #f7f7f7;
+  --maestro-bg: #f4f6f8;
+  --maestro-surface: #ffffff;
+  --maestro-navy: #17324d;
+  --maestro-navy-dark: #102437;
+  --maestro-red: #c9252d;
+  --maestro-text: #17202a;
+  --maestro-muted: #66717d;
+  --maestro-border: #e2e7ec;
 }
 
 *,
@@ -14,11 +20,10 @@
 html {
   width: 100%;
   min-height: 100%;
-  margin: 0;
   overflow-x: hidden;
-
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  background: var(--maestro-bg);
 }
 
 body {
@@ -28,9 +33,11 @@ body {
   margin: 0;
   overflow-x: hidden;
 
-  color: var(--foreground);
+  background: var(--maestro-bg);
+  color: var(--maestro-text);
 
   font-family:
+    Inter,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,

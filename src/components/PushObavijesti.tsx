@@ -79,20 +79,20 @@ export default function PushObavijesti() {
 
   if (status === "denied") {
     return (
-      <section className="mt-6 rounded-[28px] border border-[#29292f] bg-[#16161a] p-5">
+      <section className="mt-6 rounded-2xl border border-[#e2e7ec] bg-white p-5">
         <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#24242a] text-red-500">
-            <BellOff size={27} />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#f6f7f9] text-[#66717d]">
+            <BellOff size={23} />
           </div>
 
           <div>
-            <h2 className="text-[20px] font-bold text-white">
-              Obavijesti su blokirane
+            <h2 className="text-[18px] font-bold text-[#17202a]">
+              Obavijesti su isključene
             </h2>
 
-            <p className="mt-2 text-[16px] leading-6 text-[#9b9ba4]">
-              Dopuštenje možete ponovno uključiti
-              u postavkama preglednika.
+            <p className="mt-1 text-[16px] leading-6 text-[#66717d]">
+              Možete ih ponovno omogućiti u postavkama
+              preglednika.
             </p>
           </div>
         </div>
@@ -101,32 +101,32 @@ export default function PushObavijesti() {
   }
 
   return (
-    <section className="mt-6 rounded-[30px] bg-red-600 p-6 shadow-[0_15px_40px_rgba(220,38,38,0.18)]">
-      <div className="flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white">
-          <Bell size={27} />
+    <section className="mt-6 overflow-hidden rounded-2xl border border-[#dce3e9] bg-white">
+      <div className="flex items-start gap-4 p-5">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+          <Bell size={23} />
         </div>
 
         <div className="min-w-0 flex-1">
-          <h2 className="text-[21px] font-black text-white">
+          <h2 className="text-[18px] font-bold text-[#17202a]">
             Uključite obavijesti
           </h2>
 
-          <p className="mt-2 text-[16px] leading-6 text-red-50">
-            Primajte promjene termina i važne
-            informacije odmah na mobitel.
+          <p className="mt-1 text-[16px] leading-6 text-[#66717d]">
+            Primajte promjene rasporeda i važne
+            obavijesti Učilišta Maestro.
           </p>
 
           <button
             type="button"
             onClick={ukljuciObavijesti}
             disabled={ucitavanje}
-            className="mt-5 flex min-h-[54px] w-full items-center justify-center rounded-2xl bg-white px-5 text-[17px] font-black text-red-600 disabled:opacity-60"
+            className="mt-4 flex min-h-[48px] items-center justify-center rounded-xl bg-[#17324d] px-5 text-[16px] font-bold text-white disabled:opacity-60"
           >
             {ucitavanje ? (
               <>
                 <Loader2
-                  size={21}
+                  size={19}
                   className="mr-2 animate-spin"
                 />
                 Uključivanje...
@@ -137,7 +137,7 @@ export default function PushObavijesti() {
           </button>
 
           {poruka && (
-            <p className="mt-3 text-[15px] text-white">
+            <p className="mt-3 text-[14px] text-[#c9252d]">
               {poruka}
             </p>
           )}
