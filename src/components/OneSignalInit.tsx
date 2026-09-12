@@ -2,54 +2,92 @@
 
 import { useEffect } from "react";
 import OneSignal from "react-onesignal";
+
 import { supabase } from "@/lib/supabase";
+
+declare global {
+  interface Window {
+    __maestroOneSignalInitPromise?: Promise<void>;
+  }
+}
+
+const PRODUKCIJSKA_DOMENA =
+  "app.uciliste-maestro.hr";
 
 export default function OneSignalInit() {
   useEffect(() => {
+    /*
+      OneSignal pokrećemo samo na produkcijskoj domeni.
+      Na localhostu se namjerno ne inicijalizira.
+    */
+    if (
+      window.location.hostname !==
+      PRODUKCIJSKA_DOMENA
+    ) {
+      return;
+    }
+
+    const appId =
+      process.env
+        .NEXT_PUBLIC_ONESIGNAL_APP_ID;
+
+    if (!appId) {
+      console.error(
+        "NEXT_PUBLIC_ONESIGNAL_APP_ID nije postavljen."
+      );
+      return;
+    }
+
+    /*
+      Nakon ove provjere TypeScript sigurno zna
+      da je vrijednost string.
+    */
+    const oneSignalAppId: string =
+      appId;
+
     let aktivno = true;
 
-    async function pokreniOneSignal() {
+    async function inicijalizirajOneSignal() {
       try {
-        await OneSignal.init({
-          appId: "31b3133f-ff41-4e8f-871b-a5c39dc29468",
-          serviceWorkerPath: "/OneSignalSDKWorker.js",
-          serviceWorkerParam: {
-            scope: "/",
-          },
-        });
-
-        if (!aktivno) return;
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (user) {
-          await OneSignal.login(user.id);
+        /*
+          Sprječava višestruku inicijalizaciju
+          OneSignal SDK-a.
+        */
+        if (
+          !window
+            .__maestroOneSignalInitPromise
+        ) {
+          window.__maestroOneSignalInitPromise =
+            OneSignal.init({
+              appId:
+                oneSignalAppId,
+            });
         }
 
-        const {
-          data: { subscription },
-        } = supabase.auth.onAuthStateChange(
-          async (_event, session) => {
-            try {
-              if (session?.user) {
-                await OneSignal.login(session.user.id);
-              } else {
-                await OneSignal.logout();
-              }
-            } catch (error) {
-              console.error(
-                "Greška kod povezivanja OneSignal korisnika:",
-                error
-              );
-            }
-          }
-        );
+        await window
+          .__maestroOneSignalInitPromise;
 
-        return () => {
-          subscription.unsubscribe();
-        };
+        if (!aktivno) {
+          return;
+        }
+
+        /*
+          Poveži trenutno prijavljenog korisnika
+          s OneSignal External ID-em.
+        */
+        const {
+          data: { user },
+        } =
+          await supabase.auth.getUser();
+
+        if (
+          aktivno &&
+          user
+        ) {
+          await OneSignal.login(
+            user.id
+          );
+        }
       } catch (error) {
         console.error(
           "OneSignal inicijalizacija nije uspjela:",
@@ -58,14 +96,55 @@ export default function OneSignalInit() {
       }
     }
 
-    const cleanupPromise = pokreniOneSignal();
+    void inicijalizirajOneSignal();
+
+    /*
+      Prati buduće prijave i odjave korisnika.
+    */
+    const {
+      data: { subscription },
+    } =
+      supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          if (
+            window.location.hostname !==
+            PRODUKCIJSKA_DOMENA
+          ) {
+            return;
+          }
+
+          void (async () => {
+            try {
+              if (
+                window
+                  .__maestroOneSignalInitPromise
+              ) {
+                await window
+                  .__maestroOneSignalInitPromise;
+              }
+
+              if (
+                session?.user
+              ) {
+                await OneSignal.login(
+                  session.user.id
+                );
+              } else {
+                await OneSignal.logout();
+              }
+            } catch (error) {
+              console.error(
+                "OneSignal povezivanje korisnika nije uspjelo:",
+                error
+              );
+            }
+          })();
+        }
+      );
 
     return () => {
       aktivno = false;
-
-      cleanupPromise.then((cleanup) => {
-        if (cleanup) cleanup();
-      });
+      subscription.unsubscribe();
     };
   }, []);
 
