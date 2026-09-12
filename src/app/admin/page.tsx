@@ -2,23 +2,90 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import {
+  Bell,
+  BookOpen,
+  CalendarDays,
+  DoorOpen,
+  GraduationCap,
+  LogOut,
+  School,
+  Users,
+} from "lucide-react";
+
 import { supabase } from "@/lib/supabase";
+
+type AdminProfil = {
+  ime_prezime: string | null;
+  email: string | null;
+};
+
+const moduli = [
+  {
+    naziv: "Obrazovni programi",
+    opis: "Upravljanje programima obrazovanja.",
+    putanja: "/admin/programi",
+    Ikona: BookOpen,
+  },
+  {
+    naziv: "Obrazovne skupine",
+    opis: "Skupine, početak i završetak programa.",
+    putanja: "/admin/skupine",
+    Ikona: School,
+  },
+  {
+    naziv: "Polaznici",
+    opis: "Dodavanje i upravljanje polaznicima.",
+    putanja: "/admin/polaznici",
+    Ikona: Users,
+  },
+  {
+    naziv: "Profesori",
+    opis: "Profesori i korisnički pristup.",
+    putanja: "/admin/profesori",
+    Ikona: GraduationCap,
+  },
+  {
+    naziv: "Učionice",
+    opis: "Učionice, lokacije i kapaciteti.",
+    putanja: "/admin/ucionice",
+    Ikona: DoorOpen,
+  },
+  {
+    naziv: "Raspored",
+    opis: "Termini nastave, profesori i skupine.",
+    putanja: "/admin/raspored",
+    Ikona: CalendarDays,
+  },
+  {
+    naziv: "Obavijesti",
+    opis: "Objava obavijesti i push poruka.",
+    putanja: "/admin/obavijesti",
+    Ikona: Bell,
+  },
+];
 
 export default function AdminPage() {
   const router = useRouter();
 
-  const [ime, setIme] = useState("Administrator");
-  const [ucitavanje, setUcitavanje] = useState(true);
+  const [profil, setProfil] =
+    useState<AdminProfil | null>(null);
 
-  const [programi, setProgrami] = useState(0);
-  const [skupine, setSkupine] = useState(0);
-  const [ucionice, setUcionice] = useState(0);
+  const [ucitavanje, setUcitavanje] =
+    useState(true);
+
+  const [greska, setGreska] =
+    useState("");
 
   useEffect(() => {
-    provjeriPristup();
+    provjeriAdministratora();
   }, []);
 
-  async function provjeriPristup() {
+  async function provjeriAdministratora() {
+    setUcitavanje(true);
+    setGreska("");
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -28,40 +95,33 @@ export default function AdminPage() {
       return;
     }
 
-    const { data: profil } = await supabase
+    const {
+      data,
+      error,
+    } = await supabase
       .from("profili")
-      .select("ime_prezime, uloga, aktivan")
+      .select(
+        "ime_prezime, email, uloga, aktivan"
+      )
       .eq("id", user.id)
       .single();
 
     if (
-      !profil ||
-      profil.uloga !== "administrator" ||
-      profil.aktivan !== true
+      error ||
+      !data ||
+      data.uloga !== "administrator" ||
+      data.aktivan !== true
     ) {
-      router.replace("/");
+      router.replace("/login");
       return;
     }
 
-    setIme(profil.ime_prezime || "Administrator");
-
-    const [programiRez, skupineRez, ucioniceRez] = await Promise.all([
-      supabase
-        .from("obrazovni_programi")
-        .select("*", { count: "exact", head: true }),
-
-      supabase
-        .from("obrazovne_skupine")
-        .select("*", { count: "exact", head: true }),
-
-      supabase
-        .from("ucionice")
-        .select("*", { count: "exact", head: true }),
-    ]);
-
-    setProgrami(programiRez.count ?? 0);
-    setSkupine(skupineRez.count ?? 0);
-    setUcionice(ucioniceRez.count ?? 0);
+    setProfil({
+      ime_prezime:
+        data.ime_prezime,
+      email:
+        data.email || user.email || null,
+    });
 
     setUcitavanje(false);
   }
@@ -73,89 +133,128 @@ export default function AdminPage() {
 
   if (ucitavanje) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-neutral-100">
-        <p className="text-neutral-500">Učitavanje...</p>
+      <main className="flex min-h-screen items-center justify-center bg-[#f4f6f8] px-6">
+        <p className="text-lg font-semibold text-[#66717d]">
+          Učitavanje administracije...
+        </p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-neutral-100">
-      <header className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <main className="min-h-screen bg-[#f4f6f8]">
+      <header className="border-b border-[#e2e7ec] bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-5 md:px-8">
           <div>
-            <div className="text-2xl font-black text-red-600">MAESTRO</div>
-            <div className="text-xs text-neutral-500">
-              Administracija učilišta
+            <div className="text-[27px] font-black tracking-[-0.02em] text-[#c9252d]">
+              MAESTRO
             </div>
+
+            <p className="mt-0.5 text-sm font-medium text-[#66717d]">
+              Administracija Učilišta
+            </p>
           </div>
 
           <button
+            type="button"
             onClick={odjava}
-            className="rounded-xl border border-neutral-300 px-4 py-2 text-sm font-semibold"
+            className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[#dce2e7] bg-white px-4 text-sm font-bold text-[#17324d] hover:bg-[#f4f6f8]"
           >
+            <LogOut size={18} />
             Odjava
           </button>
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
-        <p className="text-sm text-neutral-500">Dobro došli,</p>
+      <div className="mx-auto max-w-7xl px-5 py-8 md:px-8">
+        <section>
+          <p className="text-sm font-bold uppercase tracking-[0.08em] text-[#c9252d]">
+            Administratorski panel
+          </p>
 
-        <h1 className="text-3xl font-bold text-neutral-900">
-          {ime}
-        </h1>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-[-0.025em] text-[#17202a] md:text-4xl">
+            Dobro došli
+            {profil?.ime_prezime
+              ? `, ${profil.ime_prezime}`
+              : ""}
+          </h1>
 
-        <p className="mt-2 text-neutral-500">
-          Upravljanje Učilištem Maestro
-        </p>
+          <p className="mt-3 max-w-2xl text-[17px] leading-7 text-[#66717d]">
+            Upravljajte programima, skupinama,
+            polaznicima, profesorima, rasporedom i
+            obavijestima Učilišta Maestro.
+          </p>
+        </section>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <p className="text-sm text-neutral-500">Obrazovni programi</p>
-            <p className="mt-2 text-4xl font-black">{programi}</p>
+        {greska && (
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+            {greska}
+          </div>
+        )}
+
+        <section className="mt-9">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#17324d] text-white">
+              <School size={21} />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-bold text-[#17202a]">
+                Upravljanje Učilištem
+              </h2>
+
+              <p className="text-sm text-[#66717d]">
+                Odaberite modul koji želite otvoriti.
+              </p>
+            </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <p className="text-sm text-neutral-500">Obrazovne skupine</p>
-            <p className="mt-2 text-4xl font-black">{skupine}</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {moduli.map((modul) => {
+              const Ikona = modul.Ikona;
+
+              return (
+                <button
+                  key={modul.putanja}
+                  type="button"
+                  onClick={() =>
+                    router.push(modul.putanja)
+                  }
+                  className="group flex min-h-[170px] w-full flex-col items-start rounded-[22px] border border-[#dfe5ea] bg-white p-5 text-left shadow-[0_5px_18px_rgba(23,50,77,0.04)] transition hover:-translate-y-0.5 hover:border-[#cbd4dc] hover:shadow-[0_8px_24px_rgba(23,50,77,0.08)]"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d] transition group-hover:bg-[#17324d] group-hover:text-white">
+                    <Ikona size={23} />
+                  </div>
+
+                  <h3 className="mt-5 text-[19px] font-bold text-[#17202a]">
+                    {modul.naziv}
+                  </h3>
+
+                  <p className="mt-2 text-[15px] leading-6 text-[#66717d]">
+                    {modul.opis}
+                  </p>
+                </button>
+              );
+            })}
           </div>
+        </section>
 
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <p className="text-sm text-neutral-500">Učionice</p>
-            <p className="mt-2 text-4xl font-black">{ucionice}</p>
-          </div>
-        </div>
+        <section className="mt-10 rounded-[22px] border border-[#dfe5ea] bg-white p-5">
+          <p className="text-sm font-bold uppercase tracking-wide text-[#8b949e]">
+            Prijavljeni korisnik
+          </p>
 
-        <h2 className="mt-10 text-xl font-bold">
-          Upravljanje
-        </h2>
+          <p className="mt-2 text-lg font-bold text-[#17202a]">
+            {profil?.ime_prezime ||
+              "Administrator"}
+          </p>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[
-            ["🎓", "Obrazovni programi", "Programi učilišta"],
-            ["👥", "Obrazovne skupine", "Skupine i polaznici"],
-            ["👨‍🏫", "Profesori", "Predavači i nastavnici"],
-            ["🏫", "Učionice", "Prostorije i zauzeće"],
-            ["📅", "Raspored", "Predavanja i termini"],
-            ["🔔", "Obavijesti", "Poruke i push obavijesti"],
-          ].map(([ikona, naslov, opis]) => (
-            <button
-              key={naslov}
-              className="rounded-2xl bg-white p-6 text-left shadow-sm transition hover:shadow-md"
-            >
-              <div className="text-3xl">{ikona}</div>
-
-              <div className="mt-4 text-lg font-bold">
-                {naslov}
-              </div>
-
-              <div className="mt-1 text-sm text-neutral-500">
-                {opis}
-              </div>
-            </button>
-          ))}
-        </div>
+          {profil?.email && (
+            <p className="mt-1 text-sm text-[#66717d]">
+              {profil.email}
+            </p>
+          )}
+        </section>
       </div>
     </main>
   );
