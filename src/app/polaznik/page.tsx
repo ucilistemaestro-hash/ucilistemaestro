@@ -1,9 +1,9 @@
-import PushObavijesti from "@/components/PushObavijesti";
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import PushObavijesti from "@/components/PushObavijesti";
 
 type Predavanje = {
   predavanje_id: string;
@@ -34,7 +34,6 @@ export default function PolaznikPage() {
   const [ime, setIme] = useState("");
   const [raspored, setRaspored] = useState<Predavanje[]>([]);
   const [obavijesti, setObavijesti] = useState<Obavijest[]>([]);
-
   const [ucitavanje, setUcitavanje] = useState(true);
   const [greska, setGreska] = useState("");
 
@@ -138,7 +137,6 @@ export default function PolaznikPage() {
   );
 
   const sljedece = buducaPredavanja[0];
-
   const najnovijeObavijesti = obavijesti.slice(0, 3);
 
   if (ucitavanje) {
@@ -180,6 +178,7 @@ export default function PolaznikPage() {
         <h1 className="mt-1 text-2xl font-bold">
           {ime} 👋
         </h1>
+
         <PushObavijesti />
 
         {greska && (
