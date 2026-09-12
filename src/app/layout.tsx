@@ -1,5 +1,10 @@
-import type { Metadata, Viewport } from "next";
+import type {
+  Metadata,
+  Viewport,
+} from "next";
+
 import "./globals.css";
+
 import OneSignalInit from "@/components/OneSignalInit";
 
 export const metadata: Metadata = {
@@ -11,9 +16,11 @@ export const metadata: Metadata = {
   description:
     "Aplikacija Učilišta Maestro za polaznike i profesore.",
 
-  applicationName: "Učilište Maestro",
+  applicationName:
+    "Učilište Maestro",
 
-  manifest: "/manifest.webmanifest",
+  manifest:
+    "/manifest.webmanifest",
 
   icons: {
     icon: "/icon.svg",
@@ -24,12 +31,19 @@ export const metadata: Metadata = {
     title: "Maestro",
     statusBarStyle: "default",
   },
+
+  formatDetection: {
+    telephone: true,
+    email: true,
+    address: true,
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#dc2626",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#dc2626",
 };
 
 export default function RootLayout({

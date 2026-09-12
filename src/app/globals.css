@@ -1,26 +1,136 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #f5f5f5;
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+}
+
+/*
+  Sprječava da sadržaj izađe izvan širine mobitela.
+*/
+main,
+header,
+footer,
+section,
+article,
+nav {
+  max-width: 100%;
+}
+
+/*
+  Slike i ostali mediji ne smiju biti širi od ekrana.
+*/
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/*
+  Dugi tekst, linkovi i e-mail adrese
+  ne smiju proširiti stranicu.
+*/
+p,
+span,
+a,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/*
+  Forme se uvijek prilagođavaju ekranu.
+*/
+input,
+textarea,
+select,
+button {
+  max-width: 100%;
+  font: inherit;
+}
+
+/*
+  16 px na inputima sprječava automatsko zumiranje
+  Safarija na iPhoneu.
+*/
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+/*
+  Mobilni gumbi imaju dovoljno veliku
+  površinu za dodir.
+*/
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+  Bolji prikaz instalirane PWA aplikacije
+  na uređajima s donjim safe-area područjem.
+*/
+nav.fixed {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/*
+  Na vrlo uskim ekranima malo smanjujemo
+  vanjske margine, ali ne i čitljivost teksta.
+*/
+@media (max-width: 380px) {
+  body {
+    font-size: 16px;
+  }
+}
+
+/*
+  Na tabletima i većim uređajima sadržaj
+  ostaje uredno centriran.
+*/
+@media (min-width: 768px) {
+  body {
+    min-height: 100vh;
+  }
 }
