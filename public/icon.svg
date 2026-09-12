@@ -1,0 +1,30 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 512 512"
+>
+  <rect
+    width="512"
+    height="512"
+    rx="110"
+    fill="#dc2626"
+  />
+
+  <circle
+    cx="256"
+    cy="256"
+    r="175"
+    fill="white"
+  />
+
+  <text
+    x="256"
+    y="325"
+    text-anchor="middle"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="220"
+    font-weight="900"
+    fill="#dc2626"
+  >
+    M
+  </text>
+</svg>
