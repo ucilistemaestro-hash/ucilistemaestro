@@ -20,24 +20,20 @@ export async function POST(
 ) {
   try {
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabasePublishableKey =
       process.env
         .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     const supabaseSecretKey =
-      process.env
-        .SUPABASE_SECRET_KEY;
+      process.env.SUPABASE_SECRET_KEY;
 
     const oneSignalAppId =
-      process.env
-        .ONESIGNAL_APP_ID;
+      process.env.ONESIGNAL_APP_ID;
 
     const oneSignalApiKey =
-      process.env
-        .ONESIGNAL_API_KEY;
+      process.env.ONESIGNAL_API_KEY;
 
     if (
       !supabaseUrl ||
@@ -86,7 +82,7 @@ export async function POST(
       );
 
     /*
-      Klijent za provjeru trenutno
+      Supabase klijent za provjeru
       prijavljenog korisnika.
     */
     const supabaseAuth =
@@ -126,7 +122,7 @@ export async function POST(
 
     /*
       Administratorski Supabase klijent.
-      Secret key nikad ne ide u browser.
+      Secret key ostaje samo na serveru.
     */
     const supabaseAdmin =
       createClient(
@@ -141,15 +137,21 @@ export async function POST(
       );
 
     /*
-      Provjera administratorske uloge.
+      Provjeri da je prijavljeni korisnik
+      aktivni administrator.
     */
     const {
       data: adminProfil,
       error: adminError,
     } = await supabaseAdmin
       .from("profili")
-      .select("id, uloga, aktivan")
-      .eq("id", user.id)
+      .select(
+        "id, uloga, aktivan"
+      )
+      .eq(
+        "id",
+        user.id
+      )
       .single();
 
     if (
@@ -213,9 +215,7 @@ export async function POST(
     }
 
     /*
-      Učitavamo stvarne podatke termina
-      iz baze, tako da ih ne vjerujemo
-      podacima poslanima iz browsera.
+      Učitaj termin iz baze.
     */
     const {
       data: predavanje,
@@ -247,12 +247,14 @@ export async function POST(
     }
 
     /*
-      Naziv skupine.
+      Naziv obrazovne skupine.
     */
     const {
       data: skupina,
     } = await supabaseAdmin
-      .from("obrazovne_skupine")
+      .from(
+        "obrazovne_skupine"
+      )
       .select("naziv")
       .eq(
         "id",
@@ -261,13 +263,15 @@ export async function POST(
       .single();
 
     /*
-      Aktivni polaznici skupine.
+      Članovi skupine.
     */
     const {
       data: clanstva,
       error: clanstvaError,
     } = await supabaseAdmin
-      .from("clanstva_skupina")
+      .from(
+        "clanstva_skupina"
+      )
       .select("korisnik_id")
       .eq(
         "skupina_id",
@@ -290,10 +294,6 @@ export async function POST(
       );
     }
 
-    /*
-      Dodatno provjeravamo da su članovi
-      stvarno aktivni polaznici.
-    */
     const kandidatiPolaznika = [
       ...new Set(
         (clanstva ?? []).map(
@@ -306,6 +306,10 @@ export async function POST(
     let polaznikIds: string[] =
       [];
 
+    /*
+      Uzmi samo aktivne korisnike
+      s ulogom polaznik.
+    */
     if (
       kandidatiPolaznika.length >
       0
@@ -462,6 +466,9 @@ export async function POST(
         )} u ${vrijeme}.`;
     }
 
+    /*
+      Slanje OneSignal push poruke.
+    */
     async function posaljiPush(
       korisnici: string[],
       url: string
@@ -535,8 +542,7 @@ export async function POST(
     }
 
     /*
-      Polaznike vodimo direktno
-      na njihov raspored.
+      Polaznici.
     */
     const polazniciRezultat =
       await posaljiPush(
@@ -545,8 +551,7 @@ export async function POST(
       );
 
     /*
-      Profesora vodimo na profesorski
-      raspored.
+      Profesor.
     */
     const profesorRezultat =
       await posaljiPush(
