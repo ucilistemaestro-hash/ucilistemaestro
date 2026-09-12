@@ -12,7 +12,7 @@ import {
   ArrowLeft,
   LoaderCircle,
   Mail,
-  Plus,
+  Send,
   Trash2,
   UserMinus,
   UserPlus,
@@ -42,6 +42,14 @@ type Clanstvo = {
   status: string;
 };
 
+type ApiOdgovor = {
+  success?: boolean;
+  korisnik_id?: string;
+  pozivnica_poslana?: boolean;
+  message?: string;
+  error?: string;
+};
+
 export default function PolazniciPage() {
   const router = useRouter();
 
@@ -60,9 +68,6 @@ export default function PolazniciPage() {
   ] = useState("");
 
   const [email, setEmail] =
-    useState("");
-
-  const [lozinka, setLozinka] =
     useState("");
 
   const [
@@ -147,7 +152,6 @@ export default function PolazniciPage() {
 
   async function ucitajPodatke() {
     setUcitavanje(true);
-    setGreska("");
 
     const [
       skupineRez,
@@ -228,35 +232,58 @@ export default function PolazniciPage() {
     setUcitavanje(false);
   }
 
+  async function procitajApiOdgovor(
+    odgovor: Response
+  ): Promise<ApiOdgovor> {
+    const tekst =
+      await odgovor.text();
+
+    if (!tekst) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(
+        tekst
+      ) as ApiOdgovor;
+    } catch {
+      return {
+        error:
+          "Poslužitelj je vratio neočekivan odgovor.",
+      };
+    }
+  }
+
   async function dodajPolaznika(
     e: FormEvent
   ) {
     e.preventDefault();
 
+    if (spremanje) {
+      return;
+    }
+
     setGreska("");
     setUspjeh("");
 
-    if (
-      !imePrezime.trim()
-    ) {
+    const cistoIme =
+      imePrezime.trim();
+
+    const cistiEmail =
+      email
+        .trim()
+        .toLowerCase();
+
+    if (!cistoIme) {
       setGreska(
         "Ime i prezime su obavezni."
       );
       return;
     }
 
-    if (!email.trim()) {
+    if (!cistiEmail) {
       setGreska(
         "E-mail je obavezan."
-      );
-      return;
-    }
-
-    if (
-      lozinka.length < 8
-    ) {
-      setGreska(
-        "Privremena lozinka mora imati najmanje 8 znakova."
       );
       return;
     }
@@ -268,21 +295,21 @@ export default function PolazniciPage() {
       return;
     }
 
-    setSpremanje(true);
-
     const {
       data: { session },
     } =
       await supabase.auth.getSession();
 
-    if (!session) {
+    if (
+      !session?.access_token
+    ) {
       setGreska(
         "Vaša prijava je istekla. Prijavite se ponovno."
       );
-
-      setSpremanje(false);
       return;
     }
+
+    setSpremanje(true);
 
     try {
       const odgovor =
@@ -302,12 +329,10 @@ export default function PolazniciPage() {
             body: JSON.stringify(
               {
                 ime_prezime:
-                  imePrezime.trim(),
+                  cistoIme,
 
                 email:
-                  email.trim(),
-
-                lozinka,
+                  cistiEmail,
 
                 skupina_id:
                   skupinaId,
@@ -317,24 +342,25 @@ export default function PolazniciPage() {
         );
 
       const rezultat =
-        await odgovor.json();
+        await procitajApiOdgovor(
+          odgovor
+        );
 
       if (!odgovor.ok) {
         setGreska(
           rezultat.error ??
             "Polaznika nije moguće dodati."
         );
-
         return;
       }
 
       setImePrezime("");
       setEmail("");
-      setLozinka("");
       setSkupinaId("");
 
       setUspjeh(
-        "Polaznik je uspješno dodan."
+        rezultat.message ??
+          "Polaznik je dodan i pozivnica za postavljanje lozinke poslana je na njegovu e-mail adresu."
       );
 
       await ucitajPodatke();
@@ -606,7 +632,9 @@ export default function PolazniciPage() {
     setOdabranaSkupina(
       (prethodno) => ({
         ...prethodno,
-        [polaznik.id]: "",
+
+        [polaznik.id]:
+          "",
       })
     );
 
@@ -650,7 +678,9 @@ export default function PolazniciPage() {
     } =
       await supabase.auth.getSession();
 
-    if (!session) {
+    if (
+      !session?.access_token
+    ) {
       setGreska(
         "Vaša prijava je istekla. Prijavite se ponovno."
       );
@@ -690,7 +720,9 @@ export default function PolazniciPage() {
         );
 
       const rezultat =
-        await odgovor.json();
+        await procitajApiOdgovor(
+          odgovor
+        );
 
       if (!odgovor.ok) {
         setGreska(
@@ -777,9 +809,9 @@ export default function PolazniciPage() {
               </h2>
 
               <p className="mt-2 text-[15px] leading-6 text-[#66717d]">
-                Dodajte polaznike, rasporedite ih u
-                obrazovne skupine ili upravljajte
-                njihovim postojećim članstvima.
+                Dodajte polaznike, pošaljite im e-mail
+                pozivnicu i rasporedite ih u obrazovne
+                skupine.
               </p>
             </div>
           </div>
@@ -812,8 +844,7 @@ export default function PolazniciPage() {
                 </h2>
 
                 <p className="mt-0.5 text-[13px] text-[#7a8590]">
-                  Kreirajte korisnički račun i
-                  odaberite skupinu.
+                  Kreirajte račun i pošaljite pozivnicu.
                 </p>
               </div>
             </div>
@@ -847,7 +878,10 @@ export default function PolazniciPage() {
                       e.target.value
                     )
                   }
-                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10"
+                  disabled={
+                    spremanje
+                  }
+                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10 disabled:bg-[#f4f6f8]"
                   placeholder="npr. Ivan Horvat"
                 />
               </div>
@@ -876,43 +910,12 @@ export default function PolazniciPage() {
                       e.target.value
                     )
                   }
-                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10"
+                  disabled={
+                    spremanje
+                  }
+                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10 disabled:bg-[#f4f6f8]"
                   placeholder="ivan@email.hr"
                 />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="lozinka"
-                  className="mb-2 block text-[13px] font-bold text-[#384550]"
-                >
-                  Privremena lozinka
-                  <span className="ml-1 text-[#c9252d]">
-                    *
-                  </span>
-                </label>
-
-                <input
-                  id="lozinka"
-                  type="password"
-                  value={
-                    lozinka
-                  }
-                  onChange={(
-                    e
-                  ) =>
-                    setLozinka(
-                      e.target.value
-                    )
-                  }
-                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10"
-                  placeholder="Najmanje 8 znakova"
-                />
-
-                <p className="mt-2 text-[12px] leading-5 text-[#7a8590]">
-                  Privremenu lozinku dostavite
-                  polazniku sigurnim putem.
-                </p>
               </div>
 
               <div>
@@ -938,7 +941,10 @@ export default function PolazniciPage() {
                       e.target.value
                     )
                   }
-                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10"
+                  disabled={
+                    spremanje
+                  }
+                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10 disabled:bg-[#f4f6f8]"
                 >
                   <option value="">
                     Odaberite skupinu
@@ -965,6 +971,30 @@ export default function PolazniciPage() {
                 </select>
               </div>
 
+              <div className="rounded-[16px] border border-[#dce5eb] bg-[#f7f9fb] p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#17324d] shadow-sm">
+                    <Mail
+                      size={18}
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-[13px] font-bold text-[#17202a]">
+                      Lozinku postavlja polaznik
+                    </p>
+
+                    <p className="mt-1 text-[12px] leading-5 text-[#66717d]">
+                      Nakon dodavanja, polazniku će na
+                      navedenu e-mail adresu biti poslana
+                      pozivnica. Polaznik će klikom na
+                      poveznicu sam postaviti svoju
+                      lozinku.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={
@@ -980,15 +1010,20 @@ export default function PolazniciPage() {
                     className="animate-spin"
                   />
                 ) : (
-                  <Plus
-                    size={19}
+                  <Send
+                    size={18}
                   />
                 )}
 
                 {spremanje
-                  ? "Dodavanje..."
-                  : "Dodaj polaznika"}
+                  ? "Slanje pozivnice..."
+                  : "Dodaj i pošalji pozivnicu"}
               </button>
+
+              <p className="text-center text-[11px] leading-5 text-[#8a949d]">
+                Administrator ne mora znati niti
+                određivati korisnikovu lozinku.
+              </p>
             </form>
           </section>
 
@@ -1041,8 +1076,8 @@ export default function PolazniciPage() {
                 </h3>
 
                 <p className="mt-2 text-[14px] leading-6 text-[#66717d]">
-                  Prvog polaznika možete dodati
-                  pomoću obrasca.
+                  Prvog polaznika možete dodati pomoću
+                  obrasca.
                 </p>
               </div>
             ) : (
@@ -1224,8 +1259,8 @@ export default function PolazniciPage() {
                               {dostupneSkupine.length ===
                               0 ? (
                                 <p className="mt-2 text-[14px] italic text-[#929ba4]">
-                                  Nema drugih aktivnih skupina
-                                  za dodavanje.
+                                  Nema drugih aktivnih
+                                  skupina za dodavanje.
                                 </p>
                               ) : (
                                 <div className="mt-2 flex flex-col gap-2 sm:flex-row">

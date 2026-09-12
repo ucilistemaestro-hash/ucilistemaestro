@@ -14,8 +14,8 @@ import {
   LoaderCircle,
   Mail,
   Phone,
-  Plus,
   Power,
+  Send,
   Trash2,
   UserRound,
 } from "lucide-react";
@@ -32,6 +32,8 @@ type Profesor = {
 
 type ApiOdgovor = {
   success?: boolean;
+  korisnik_id?: string;
+  pozivnica_poslana?: boolean;
   error?: string;
   message?: string;
 };
@@ -39,8 +41,10 @@ type ApiOdgovor = {
 export default function ProfesoriPage() {
   const router = useRouter();
 
-  const [profesori, setProfesori] =
-    useState<Profesor[]>([]);
+  const [
+    profesori,
+    setProfesori,
+  ] = useState<Profesor[]>([]);
 
   const [
     imePrezime,
@@ -50,11 +54,10 @@ export default function ProfesoriPage() {
   const [email, setEmail] =
     useState("");
 
-  const [telefon, setTelefon] =
-    useState("");
-
-  const [lozinka, setLozinka] =
-    useState("");
+  const [
+    telefon,
+    setTelefon,
+  ] = useState("");
 
   const [
     ucitavanje,
@@ -191,30 +194,34 @@ export default function ProfesoriPage() {
   ) {
     e.preventDefault();
 
+    if (spremanje) {
+      return;
+    }
+
     setGreska("");
     setUspjeh("");
 
-    if (
-      !imePrezime.trim()
-    ) {
+    const cistoIme =
+      imePrezime.trim();
+
+    const cistiEmail =
+      email
+        .trim()
+        .toLowerCase();
+
+    const cistiTelefon =
+      telefon.trim();
+
+    if (!cistoIme) {
       setGreska(
         "Ime i prezime su obavezni."
       );
       return;
     }
 
-    if (!email.trim()) {
+    if (!cistiEmail) {
       setGreska(
         "E-mail je obavezan."
-      );
-      return;
-    }
-
-    if (
-      lozinka.length < 8
-    ) {
-      setGreska(
-        "Privremena lozinka mora imati najmanje 8 znakova."
       );
       return;
     }
@@ -224,7 +231,9 @@ export default function ProfesoriPage() {
     } =
       await supabase.auth.getSession();
 
-    if (!session) {
+    if (
+      !session?.access_token
+    ) {
       setGreska(
         "Vaša prijava je istekla. Prijavite se ponovno."
       );
@@ -251,15 +260,13 @@ export default function ProfesoriPage() {
             body: JSON.stringify(
               {
                 ime_prezime:
-                  imePrezime.trim(),
+                  cistoIme,
 
                 email:
-                  email.trim(),
+                  cistiEmail,
 
                 telefon:
-                  telefon.trim(),
-
-                lozinka,
+                  cistiTelefon,
               }
             ),
           }
@@ -281,10 +288,10 @@ export default function ProfesoriPage() {
       setImePrezime("");
       setEmail("");
       setTelefon("");
-      setLozinka("");
 
       setUspjeh(
-        "Profesor je uspješno dodan."
+        rezultat.message ??
+          "Profesor je dodan i pozivnica za postavljanje lozinke poslana je na njegovu e-mail adresu."
       );
 
       await ucitajProfesore();
@@ -389,7 +396,9 @@ export default function ProfesoriPage() {
     } =
       await supabase.auth.getSession();
 
-    if (!session) {
+    if (
+      !session?.access_token
+    ) {
       setGreska(
         "Vaša prijava je istekla. Prijavite se ponovno."
       );
@@ -405,7 +414,8 @@ export default function ProfesoriPage() {
         await fetch(
           "/api/admin/profesori/obrisi",
           {
-            method: "DELETE",
+            method:
+              "DELETE",
 
             headers: {
               "Content-Type":
@@ -510,9 +520,9 @@ export default function ProfesoriPage() {
               </h2>
 
               <p className="mt-2 text-[15px] leading-6 text-[#66717d]">
-                Dodajte profesore, upravljajte njihovim
-                pristupom aplikaciji i uklonite korisničke
-                račune koji više nisu potrebni.
+                Dodajte profesore, pošaljite im e-mail
+                pozivnicu i upravljajte njihovim
+                pristupom Maestro aplikaciji.
               </p>
             </div>
           </div>
@@ -534,7 +544,7 @@ export default function ProfesoriPage() {
           <section className="rounded-[24px] border border-[#dfe5ea] bg-white p-5 shadow-[0_6px_20px_rgba(23,50,77,0.04)] lg:sticky lg:top-[96px]">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
-                <Plus
+                <GraduationCap
                   size={20}
                 />
               </div>
@@ -545,7 +555,7 @@ export default function ProfesoriPage() {
                 </h2>
 
                 <p className="mt-0.5 text-[13px] text-[#7a8590]">
-                  Kreirajte korisnički račun profesora.
+                  Kreirajte račun i pošaljite pozivnicu.
                 </p>
               </div>
             </div>
@@ -579,7 +589,10 @@ export default function ProfesoriPage() {
                       e.target.value
                     )
                   }
-                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10"
+                  disabled={
+                    spremanje
+                  }
+                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10 disabled:bg-[#f4f6f8]"
                   placeholder="npr. Ana Horvat"
                 />
               </div>
@@ -608,7 +621,10 @@ export default function ProfesoriPage() {
                       e.target.value
                     )
                   }
-                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10"
+                  disabled={
+                    spremanje
+                  }
+                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10 disabled:bg-[#f4f6f8]"
                   placeholder="ana@email.hr"
                 />
               </div>
@@ -634,43 +650,36 @@ export default function ProfesoriPage() {
                       e.target.value
                     )
                   }
-                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10"
+                  disabled={
+                    spremanje
+                  }
+                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10 disabled:bg-[#f4f6f8]"
                   placeholder="npr. 091 123 4567"
                 />
               </div>
 
-              <div>
-                <label
-                  htmlFor="lozinka"
-                  className="mb-2 block text-[13px] font-bold text-[#384550]"
-                >
-                  Privremena lozinka
-                  <span className="ml-1 text-[#c9252d]">
-                    *
-                  </span>
-                </label>
+              <div className="rounded-[16px] border border-[#dce5eb] bg-[#f7f9fb] p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#17324d] shadow-sm">
+                    <Mail
+                      size={18}
+                    />
+                  </div>
 
-                <input
-                  id="lozinka"
-                  type="password"
-                  value={
-                    lozinka
-                  }
-                  onChange={(
-                    e
-                  ) =>
-                    setLozinka(
-                      e.target.value
-                    )
-                  }
-                  className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition placeholder:text-[#a0a8b0] focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10"
-                  placeholder="Najmanje 8 znakova"
-                />
+                  <div>
+                    <p className="text-[13px] font-bold text-[#17202a]">
+                      Lozinku postavlja profesor
+                    </p>
 
-                <p className="mt-2 text-[12px] leading-5 text-[#7a8590]">
-                  Privremenu lozinku dostavite profesoru
-                  sigurnim putem.
-                </p>
+                    <p className="mt-1 text-[12px] leading-5 text-[#66717d]">
+                      Nakon dodavanja, profesoru će na
+                      navedenu e-mail adresu biti poslana
+                      pozivnica. Klikom na poveznicu
+                      profesor sam postavlja svoju
+                      lozinku.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <button
@@ -690,15 +699,20 @@ export default function ProfesoriPage() {
                     className="animate-spin"
                   />
                 ) : (
-                  <Plus
-                    size={19}
+                  <Send
+                    size={18}
                   />
                 )}
 
                 {spremanje
-                  ? "Dodavanje..."
-                  : "Dodaj profesora"}
+                  ? "Slanje pozivnice..."
+                  : "Dodaj i pošalji pozivnicu"}
               </button>
+
+              <p className="text-center text-[11px] leading-5 text-[#8a949d]">
+                Administrator ne mora znati niti
+                određivati profesorovu lozinku.
+              </p>
             </form>
           </section>
 
