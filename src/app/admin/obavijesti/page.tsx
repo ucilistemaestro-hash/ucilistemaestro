@@ -13,6 +13,7 @@ import {
   Bell,
   BellOff,
   CheckCircle2,
+  ClipboardCheck,
   ExternalLink,
   Link as LinkIcon,
   LoaderCircle,
@@ -41,6 +42,7 @@ type Obavijest = {
   skupina_id: string | null;
   korisnik_id: string | null;
   aktivna: boolean;
+  zahtijeva_potvrdu: boolean;
   datum_objave: string;
 };
 
@@ -81,6 +83,11 @@ export default function ObavijestiPage() {
     skupinaId,
     setSkupinaId,
   ] = useState("");
+
+  const [
+    zahtijevaPotvrdu,
+    setZahtijevaPotvrdu,
+  ] = useState(false);
 
   const [
     ucitavanje,
@@ -185,7 +192,7 @@ export default function ObavijestiPage() {
         supabase
           .from("obavijesti")
           .select(
-            "id, naslov, poruka, link, cilj, skupina_id, korisnik_id, aktivna, datum_objave"
+            "id, naslov, poruka, link, cilj, skupina_id, korisnik_id, aktivna, zahtijeva_potvrdu, datum_objave"
           )
           .order(
             "datum_objave",
@@ -329,6 +336,9 @@ export default function ObavijestiPage() {
           korisnik_id:
             null,
 
+          zahtijeva_potvrdu:
+            zahtijevaPotvrdu,
+
           created_by:
             session.user.id,
         });
@@ -435,6 +445,7 @@ export default function ObavijestiPage() {
       setLink("");
       setCilj("svi");
       setSkupinaId("");
+      setZahtijevaPotvrdu(false);
 
       await ucitajPodatke();
     } catch (error) {
@@ -1007,6 +1018,40 @@ export default function ObavijestiPage() {
                 </p>
               </div>
 
+              <label className="flex cursor-pointer items-start gap-3 rounded-[16px] border border-[#dde5eb] bg-white p-4 transition hover:bg-[#f8fafb]">
+                <input
+                  type="checkbox"
+                  checked={
+                    zahtijevaPotvrdu
+                  }
+                  onChange={(e) =>
+                    setZahtijevaPotvrdu(
+                      e.target.checked
+                    )
+                  }
+                  className="mt-1 h-4 w-4 shrink-0 accent-[#17324d]"
+                />
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ClipboardCheck
+                      size={17}
+                      className="text-[#17324d]"
+                    />
+
+                    <p className="text-[13px] font-bold text-[#17202a]">
+                      Zahtijevaj potvrdu primitka
+                    </p>
+                  </div>
+
+                  <p className="mt-1 text-[12px] leading-5 text-[#66717d]">
+                    Korisnik će u aplikaciji moći potvrditi da je
+                    pročitao obavijest. Push obavijest se i dalje
+                    šalje kao i do sada.
+                  </p>
+                </div>
+              </label>
+
               <div className="rounded-[16px] border border-[#dde5eb] bg-[#f7f9fb] p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#17324d] shadow-sm">
@@ -1154,6 +1199,15 @@ export default function ObavijestiPage() {
                                 ? "Aktivna"
                                 : "Neaktivna"}
                             </span>
+
+                            {obavijest.zahtijeva_potvrdu && (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef3f7] px-2.5 py-1 text-[11px] font-bold text-[#17324d]">
+                                <ClipboardCheck
+                                  size={12}
+                                />
+                                Traži potvrdu
+                              </span>
+                            )}
                           </div>
 
                           <div className="mt-2 inline-flex items-center gap-2 rounded-lg bg-[#fff2f2] px-2.5 py-1.5 text-[12px] font-bold text-[#b52027]">
