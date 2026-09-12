@@ -13,7 +13,10 @@ import {
   Bell,
   BellOff,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ClipboardCheck,
+  Eye,
   ExternalLink,
   Link as LinkIcon,
   LoaderCircle,
@@ -44,6 +47,15 @@ type Obavijest = {
   aktivna: boolean;
   zahtijeva_potvrdu: boolean;
   datum_objave: string;
+};
+
+type PregledPrimatelja = {
+  korisnik_id: string;
+  ime_prezime: string;
+  email: string;
+  uloga: string;
+  procitano_at: string | null;
+  potvrdeno_at: string | null;
 };
 
 type PushOdgovor = {
@@ -114,6 +126,37 @@ export default function ObavijestiPage() {
     useState<string | null>(
       null
     );
+
+  const [
+    otvorenPregledId,
+    setOtvorenPregledId,
+  ] = useState<string | null>(
+    null
+  );
+
+  const [
+    pregledUTijeku,
+    setPregledUTijeku,
+  ] = useState<string | null>(
+    null
+  );
+
+  const [
+    preglediPrimatelja,
+    setPreglediPrimatelja,
+  ] = useState<
+    Record<
+      string,
+      PregledPrimatelja[]
+    >
+  >({});
+
+  const [
+    greskePregleda,
+    setGreskePregleda,
+  ] = useState<
+    Record<string, string>
+  >({});
 
   const [greska, setGreska] =
     useState("");
@@ -310,6 +353,8 @@ export default function ObavijestiPage() {
 
     try {
       const {
+        data:
+          novaObavijest,
         error:
           spremanjeError,
       } = await supabase
@@ -341,17 +386,44 @@ export default function ObavijestiPage() {
 
           created_by:
             session.user.id,
-        });
+        })
+        .select("id")
+        .single();
 
       if (
-        spremanjeError
+        spremanjeError ||
+        !novaObavijest
       ) {
         setGreska(
           "Obavijest nije moguće spremiti: " +
-            spremanjeError.message
+            (
+              spremanjeError
+                ?.message ??
+              "Nije vraćen ID nove obavijesti."
+            )
         );
 
         return;
+      }
+
+      const {
+        error:
+          inicijalizacijaError,
+      } = await supabase.rpc(
+        "inicijaliziraj_statuse_obavijesti",
+        {
+          p_obavijest_id:
+            novaObavijest.id,
+        }
+      );
+
+      if (
+        inicijalizacijaError
+      ) {
+        console.error(
+          "Greška inicijalizacije evidencije primatelja:",
+          inicijalizacijaError
+        );
       }
 
       try {
@@ -460,6 +532,333 @@ export default function ObavijestiPage() {
     } finally {
       setSpremanje(false);
     }
+  }
+
+  async function osvjeziPregledPrimatelja(
+    obavijestId: string
+  ) {
+    setPregledUTijeku(
+      obavijestId
+    );
+
+    setGreskePregleda(
+      (trenutne) => ({
+        ...trenutne,
+        [obavijestId]: "",
+      })
+    );
+
+    const {
+      data,
+      error,
+    } = await supabase.rpc(
+      "admin_pregled_obavijesti",
+      {
+        p_obavijest_id:
+          obavijestId,
+      }
+    );
+
+    if (error) {
+      console.error(
+        "Greška pregleda primitka:",
+        error
+      );
+
+      setGreskePregleda(
+        (trenutne) => ({
+          ...trenutne,
+          [obavijestId]:
+            "Pregled primitka trenutačno nije moguće učitati.",
+        })
+      );
+
+      setPregledUTijeku(
+        null
+      );
+      return;
+    }
+
+    setPreglediPrimatelja(
+      (trenutni) => ({
+        ...trenutni,
+        [obavijestId]:
+          (data ??
+            []) as PregledPrimatelja[],
+      })
+    );
+
+    setPregledUTijeku(
+      null
+    );
+  }
+
+  async function promijeniPregledPrimatelja(
+    obavijestId: string
+  ) {
+    if (
+      otvorenPregledId ===
+      obavijestId
+    ) {
+      setOtvorenPregledId(
+        null
+      );
+      return;
+    }
+
+    setOtvorenPregledId(
+      obavijestId
+    );
+
+    await osvjeziPregledPrimatelja(
+      obavijestId
+    );
+  }
+
+  function prikazPregledaPrimatelja(
+    obavijest: Obavijest
+  ) {
+    const primatelji =
+      preglediPrimatelja[
+        obavijest.id
+      ] ?? [];
+
+    const brojProcitanih =
+      primatelji.filter(
+        (primatelj) =>
+          primatelj.procitano_at !==
+          null
+      ).length;
+
+    const brojPotvrdenih =
+      primatelji.filter(
+        (primatelj) =>
+          primatelj.potvrdeno_at !==
+          null
+      ).length;
+
+    const brojNeprocitanih =
+      primatelji.length -
+      brojProcitanih;
+
+    const ucitavaSe =
+      pregledUTijeku ===
+      obavijest.id;
+
+    const greskaPregleda =
+      greskePregleda[
+        obavijest.id
+      ] ?? "";
+
+    return (
+      <div className="mt-5 border-t border-[#edf0f2] pt-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-[#c9252d]">
+              Evidencija primitka
+            </p>
+
+            <h4 className="mt-1 text-[17px] font-extrabold text-[#17202a]">
+              Tko je pročitao obavijest
+            </h4>
+
+            <p className="mt-1 text-[12px] leading-5 text-[#7a8590]">
+              Podaci se osvježavaju iz evidencije korisnika u
+              Maestro aplikaciji.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              void osvjeziPregledPrimatelja(
+                obavijest.id
+              )
+            }
+            disabled={ucitavaSe}
+            className="inline-flex min-h-[38px] shrink-0 items-center justify-center gap-2 rounded-xl border border-[#d6dde3] bg-white px-3 text-[12px] font-bold text-[#17324d] transition hover:bg-[#f4f6f8] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {ucitavaSe && (
+              <LoaderCircle
+                size={14}
+                className="animate-spin"
+              />
+            )}
+
+            Osvježi
+          </button>
+        </div>
+
+        {greskaPregleda ? (
+          <div className="mt-4 rounded-[16px] border border-[#f2c7ca] bg-[#fff5f5] px-4 py-3 text-[13px] leading-5 text-[#a71d24]">
+            {greskaPregleda}
+          </div>
+        ) : ucitavaSe &&
+          primatelji.length ===
+            0 ? (
+          <div className="mt-4 flex min-h-[110px] items-center justify-center rounded-[16px] border border-[#e1e6ea] bg-[#f8fafb]">
+            <div className="flex items-center gap-2 text-[13px] font-semibold text-[#66717d]">
+              <LoaderCircle
+                size={17}
+                className="animate-spin"
+              />
+              Učitavanje pregleda...
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[16px] border border-[#dfe5ea] bg-[#f8fafb] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8b949e]">
+                  Primatelji
+                </p>
+
+                <p className="mt-1 text-[22px] font-extrabold text-[#17202a]">
+                  {primatelji.length}
+                </p>
+              </div>
+
+              <div className="rounded-[16px] border border-[#cde5d4] bg-[#f2faf4] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#557260]">
+                  Pročitali
+                </p>
+
+                <p className="mt-1 text-[22px] font-extrabold text-[#277442]">
+                  {brojProcitanih}
+                </p>
+
+                <p className="mt-1 text-[11px] text-[#6f7c73]">
+                  Nije pročitalo:{" "}
+                  {brojNeprocitanih}
+                </p>
+              </div>
+
+              <div className="rounded-[16px] border border-[#d9e2e9] bg-[#f4f7f9] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#60707d]">
+                  {obavijest.zahtijeva_potvrdu
+                    ? "Potvrdili"
+                    : "Potvrda"}
+                </p>
+
+                <p className="mt-1 text-[22px] font-extrabold text-[#17324d]">
+                  {obavijest.zahtijeva_potvrdu
+                    ? brojPotvrdenih
+                    : "—"}
+                </p>
+
+                <p className="mt-1 text-[11px] text-[#71808c]">
+                  {obavijest.zahtijeva_potvrdu
+                    ? `Čeka potvrdu: ${
+                        primatelji.length -
+                        brojPotvrdenih
+                      }`
+                    : "Nije bila zatražena"}
+                </p>
+              </div>
+            </div>
+
+            {primatelji.length ===
+            0 ? (
+              <div className="mt-4 rounded-[16px] border border-[#e1e6ea] bg-[#f8fafb] px-4 py-4 text-[13px] leading-5 text-[#66717d]">
+                Za ovu obavijest nema evidentiranih primatelja.
+              </div>
+            ) : (
+              <div className="mt-4 overflow-hidden rounded-[16px] border border-[#dfe5ea]">
+                <div className="divide-y divide-[#edf0f2] bg-white">
+                  {primatelji.map(
+                    (primatelj) => {
+                      const potvrdeno =
+                        primatelj.potvrdeno_at !==
+                        null;
+
+                      const procitano =
+                        primatelj.procitano_at !==
+                        null;
+
+                      return (
+                        <div
+                          key={
+                            primatelj.korisnik_id
+                          }
+                          className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-[14px] font-bold text-[#17202a]">
+                              {
+                                primatelj.ime_prezime
+                              }
+                            </p>
+
+                            <p className="mt-0.5 truncate text-[12px] text-[#7a8590]">
+                              {primatelj.email}
+                            </p>
+
+                            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#9aa2aa]">
+                              {primatelj.uloga ===
+                              "polaznik"
+                                ? "Polaznik"
+                                : primatelj.uloga ===
+                                  "profesor"
+                                ? "Profesor"
+                                : "Administrator"}
+                            </p>
+                          </div>
+
+                          <div className="shrink-0 sm:text-right">
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                                potvrdeno
+                                  ? "bg-[#edf7f0] text-[#277442]"
+                                  : procitano &&
+                                    obavijest.zahtijeva_potvrdu
+                                  ? "bg-[#fff7e8] text-[#8a6419]"
+                                  : procitano
+                                  ? "bg-[#eef3f7] text-[#17324d]"
+                                  : "bg-[#f1f3f5] text-[#69737c]"
+                              }`}
+                            >
+                              {potvrdeno
+                                ? "Potvrđeno"
+                                : procitano &&
+                                  obavijest.zahtijeva_potvrdu
+                                ? "Pročitano – čeka potvrdu"
+                                : procitano
+                                ? "Pročitano"
+                                : "Nije pročitano"}
+                            </span>
+
+                            {potvrdeno &&
+                              primatelj.potvrdeno_at && (
+                                <p className="mt-1 text-[11px] text-[#929ba4]">
+                                  Potvrđeno{" "}
+                                  {formatDatum(
+                                    primatelj.potvrdeno_at
+                                  )}
+                                </p>
+                              )}
+
+                            {!potvrdeno &&
+                              procitano &&
+                              primatelj.procitano_at && (
+                                <p className="mt-1 text-[11px] text-[#929ba4]">
+                                  Pročitano{" "}
+                                  {formatDatum(
+                                    primatelj.procitano_at
+                                  )}
+                                </p>
+                              )}
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
   }
 
   async function promijeniStatus(
@@ -1255,6 +1654,47 @@ export default function ObavijestiPage() {
                           <button
                             type="button"
                             onClick={() =>
+                              void promijeniPregledPrimatelja(
+                                obavijest.id
+                              )
+                            }
+                            disabled={
+                              pregledUTijeku !==
+                                null &&
+                              pregledUTijeku !==
+                                obavijest.id
+                            }
+                            className="flex min-h-[42px] items-center gap-2 rounded-xl border border-[#cdd9e2] bg-white px-3.5 text-[13px] font-bold text-[#17324d] transition hover:bg-[#f4f7f9] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {pregledUTijeku ===
+                            obavijest.id ? (
+                              <LoaderCircle
+                                size={16}
+                                className="animate-spin"
+                              />
+                            ) : (
+                              <Eye
+                                size={16}
+                              />
+                            )}
+
+                            Pregled primitka
+
+                            {otvorenPregledId ===
+                            obavijest.id ? (
+                              <ChevronUp
+                                size={15}
+                              />
+                            ) : (
+                              <ChevronDown
+                                size={15}
+                              />
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
                               void promijeniStatus(
                                 obavijest
                               )
@@ -1325,6 +1765,12 @@ export default function ObavijestiPage() {
                           </button>
                         </div>
                       </div>
+
+                      {otvorenPregledId ===
+                        obavijest.id &&
+                        prikazPregledaPrimatelja(
+                          obavijest
+                        )}
                     </article>
                   )
                 )}

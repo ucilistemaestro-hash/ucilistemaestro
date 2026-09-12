@@ -9,6 +9,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Bell,
+  CheckCircle2,
+  ClipboardCheck,
   ExternalLink,
   Info,
   LoaderCircle,
@@ -26,6 +28,9 @@ type Obavijest = {
   link: string | null;
   datum_objave: string;
   cilj: string;
+  zahtijeva_potvrdu: boolean;
+  procitano_at: string | null;
+  potvrdeno_at: string | null;
 };
 
 const PRODUKCIJSKA_DOMENA =
@@ -52,6 +57,18 @@ export default function ProfesorObavijestiPage() {
   ] =
     useState("");
 
+  const [
+    potvrdaUTijeku,
+    setPotvrdaUTijeku,
+  ] = useState<string | null>(
+    null
+  );
+
+  const [
+    akcijaGreska,
+    setAkcijaGreska,
+  ] = useState("");
+
   useEffect(() => {
     void ucitajObavijesti();
   }, []);
@@ -59,6 +76,7 @@ export default function ProfesorObavijestiPage() {
   async function ucitajObavijesti() {
     setUcitavanje(true);
     setGreska("");
+    setAkcijaGreska("");
 
     const {
       data: { user },
@@ -96,24 +114,201 @@ export default function ProfesorObavijestiPage() {
       return;
     }
 
-    const {
-      data,
-      error,
-    } = await supabase.rpc(
-      "moje_obavijesti"
-    );
+    const [
+      obavijestiRez,
+      statusiRez,
+    ] = await Promise.all([
+      supabase.rpc(
+        "moje_obavijesti"
+      ),
+      supabase.rpc(
+        "moji_statusi_obavijesti"
+      ),
+    ]);
 
-    if (error) {
+    if (
+      obavijestiRez.error
+    ) {
       setGreska(
         "Nije moguće učitati obavijesti."
       );
-    } else {
-      setObavijesti(
-        data ?? []
-      );
+      setUcitavanje(false);
+      return;
     }
 
+    if (
+      statusiRez.error
+    ) {
+      setGreska(
+        "Nije moguće učitati statuse obavijesti."
+      );
+      setUcitavanje(false);
+      return;
+    }
+
+    type StatusObavijesti = {
+      obavijest_id: string;
+      zahtijeva_potvrdu: boolean;
+      procitano_at: string | null;
+      potvrdeno_at: string | null;
+    };
+
+    const mapaStatusa =
+      new Map<
+        string,
+        StatusObavijesti
+      >(
+        (
+          (statusiRez.data ??
+            []) as StatusObavijesti[]
+        ).map((status) => [
+          status.obavijest_id,
+          status,
+        ])
+      );
+
+    const spojeneObavijesti =
+      (
+        obavijestiRez.data ??
+        []
+      ).map(
+        (
+          obavijest: Omit<
+            Obavijest,
+            | "zahtijeva_potvrdu"
+            | "procitano_at"
+            | "potvrdeno_at"
+          >
+        ) => {
+          const status =
+            mapaStatusa.get(
+              obavijest.obavijest_id
+            );
+
+          return {
+            ...obavijest,
+            zahtijeva_potvrdu:
+              status
+                ?.zahtijeva_potvrdu ??
+              false,
+            procitano_at:
+              status
+                ?.procitano_at ??
+              null,
+            potvrdeno_at:
+              status
+                ?.potvrdeno_at ??
+              null,
+          };
+        }
+      );
+
+    setObavijesti(
+      spojeneObavijesti
+    );
     setUcitavanje(false);
+
+    if (
+      spojeneObavijesti.length >
+      0
+    ) {
+      const {
+        error:
+          procitanoError,
+      } = await supabase.rpc(
+        "oznaci_moje_obavijesti_procitanima"
+      );
+
+      if (
+        procitanoError
+      ) {
+        console.error(
+          "Greška kod označavanja obavijesti pročitanima:",
+          procitanoError
+        );
+        return;
+      }
+
+      const sada =
+        new Date().toISOString();
+
+      setObavijesti(
+        (trenutne) =>
+          trenutne.map(
+            (obavijest) => ({
+              ...obavijest,
+              procitano_at:
+                obavijest.procitano_at ??
+                sada,
+            })
+          )
+      );
+    }
+  }
+
+  async function potvrdiObavijest(
+    obavijestId: string
+  ) {
+    if (potvrdaUTijeku) {
+      return;
+    }
+
+    setAkcijaGreska("");
+    setPotvrdaUTijeku(
+      obavijestId
+    );
+
+    const {
+      error,
+    } = await supabase.rpc(
+      "potvrdi_obavijest",
+      {
+        p_obavijest_id:
+          obavijestId,
+      }
+    );
+
+    if (error) {
+      console.error(
+        "Greška potvrde obavijesti:",
+        error
+      );
+
+      setAkcijaGreska(
+        "Potvrdu primitka trenutačno nije moguće spremiti. Pokušajte ponovno."
+      );
+
+      setPotvrdaUTijeku(
+        null
+      );
+      return;
+    }
+
+    const sada =
+      new Date().toISOString();
+
+    setObavijesti(
+      (trenutne) =>
+        trenutne.map(
+          (obavijest) =>
+            obavijest.obavijest_id ===
+            obavijestId
+              ? {
+                  ...obavijest,
+                  procitano_at:
+                    obavijest.procitano_at ??
+                    sada,
+                  potvrdeno_at:
+                    obavijest.potvrdeno_at ??
+                    sada,
+                }
+              : obavijest
+        )
+    );
+
+    setPotvrdaUTijeku(
+      null
+    );
   }
 
   function formatDatum(
@@ -253,6 +448,12 @@ export default function ProfesorObavijestiPage() {
           </p>
         </section>
 
+        {akcijaGreska && (
+          <div className="mt-6 rounded-[20px] border border-[#f2c7ca] bg-[#fff5f5] px-4 py-4 text-[15px] leading-6 text-[#a71d24]">
+            {akcijaGreska}
+          </div>
+        )}
+
         {ucitavanje ? (
           <div className="mt-6 flex min-h-[180px] items-center justify-center rounded-[22px] border border-[#dfe5ea] bg-white">
             <div className="flex flex-col items-center gap-3">
@@ -365,6 +566,99 @@ export default function ProfesorObavijestiPage() {
                               obavijest.poruka
                             }
                           </p>
+
+                          {obavijest.procitano_at && (
+                            <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#edf7f0] px-2.5 py-1 text-[12px] font-bold text-[#277442]">
+                              <CheckCircle2
+                                size={14}
+                              />
+                              Pročitano
+                            </div>
+                          )}
+
+                          {obavijest.zahtijeva_potvrdu &&
+                            !obavijest.potvrdeno_at && (
+                              <div className="mt-4 rounded-[16px] border border-[#d7e0e7] bg-[#f7f9fb] p-4">
+                                <div className="flex items-start gap-3">
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#17324d] shadow-sm">
+                                    <ClipboardCheck
+                                      size={18}
+                                    />
+                                  </div>
+
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[13px] font-bold text-[#17202a]">
+                                      Potrebna je potvrda primitka
+                                    </p>
+
+                                    <p className="mt-1 text-[12px] leading-5 text-[#66717d]">
+                                      Potvrdite da ste pročitali ovu
+                                      obavijest.
+                                    </p>
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void potvrdiObavijest(
+                                          obavijest.obavijest_id
+                                        )
+                                      }
+                                      disabled={
+                                        potvrdaUTijeku !==
+                                        null
+                                      }
+                                      className="mt-3 inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-[#17324d] px-4 text-[13px] font-bold text-white transition hover:bg-[#102437] disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                      {potvrdaUTijeku ===
+                                      obavijest.obavijest_id ? (
+                                        <LoaderCircle
+                                          size={16}
+                                          className="animate-spin"
+                                        />
+                                      ) : (
+                                        <ClipboardCheck
+                                          size={16}
+                                        />
+                                      )}
+
+                                      {potvrdaUTijeku ===
+                                      obavijest.obavijest_id
+                                        ? "Spremanje..."
+                                        : "Potvrđujem primitak"}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                          {obavijest.zahtijeva_potvrdu &&
+                            obavijest.potvrdeno_at && (
+                              <div className="mt-4 flex items-start gap-3 rounded-[16px] border border-[#cde5d4] bg-[#f2faf4] p-4">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#277442] shadow-sm">
+                                  <ClipboardCheck
+                                    size={18}
+                                  />
+                                </div>
+
+                                <div>
+                                  <p className="text-[13px] font-bold text-[#277442]">
+                                    Potvrđeno
+                                  </p>
+
+                                  <p className="mt-1 text-[12px] leading-5 text-[#557260]">
+                                    Potvrdu primitka poslali ste{" "}
+                                    {formatDatum(
+                                      obavijest.potvrdeno_at
+                                    )}{" "}
+                                    u{" "}
+                                    {formatVrijeme(
+                                      obavijest.potvrdeno_at
+                                    )}
+                                    .
+                                  </p>
+                                </div>
+                              </div>
+                            )}
 
                           {obavijest.link && (
                             <button
