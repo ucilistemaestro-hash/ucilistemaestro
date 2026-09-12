@@ -15,25 +15,47 @@ type RequestBody = {
   vrsta?: VrstaObavijesti;
 };
 
+type ObavijestZaSpremanje = {
+  naslov: string;
+  poruka: string;
+  link: string;
+  cilj:
+    | "skupina"
+    | "korisnik";
+  skupina_id:
+    | string
+    | null;
+  korisnik_id:
+    | string
+    | null;
+  aktivna: boolean;
+  datum_objave: string;
+  created_by: string;
+};
+
 export async function POST(
   request: NextRequest
 ) {
   try {
     const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
+      process.env
+        .NEXT_PUBLIC_SUPABASE_URL;
 
     const supabasePublishableKey =
       process.env
         .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     const supabaseSecretKey =
-      process.env.SUPABASE_SECRET_KEY;
+      process.env
+        .SUPABASE_SECRET_KEY;
 
     const oneSignalAppId =
-      process.env.ONESIGNAL_APP_ID;
+      process.env
+        .ONESIGNAL_APP_ID;
 
     const oneSignalApiKey =
-      process.env.ONESIGNAL_API_KEY;
+      process.env
+        .ONESIGNAL_API_KEY;
 
     if (
       !supabaseUrl ||
@@ -53,9 +75,6 @@ export async function POST(
       );
     }
 
-    /*
-      Sigurne string vrijednosti nakon provjere.
-    */
     const supabaseUrlValue: string =
       supabaseUrl;
 
@@ -108,8 +127,10 @@ export async function POST(
         supabasePublishableKeyValue,
         {
           auth: {
-            persistSession: false,
-            autoRefreshToken: false,
+            persistSession:
+              false,
+            autoRefreshToken:
+              false,
           },
         }
       );
@@ -146,14 +167,16 @@ export async function POST(
         supabaseSecretKeyValue,
         {
           auth: {
-            persistSession: false,
-            autoRefreshToken: false,
+            persistSession:
+              false,
+            autoRefreshToken:
+              false,
           },
         }
       );
 
     /*
-      Provjera da je korisnik aktivni administrator.
+      Provjera administratorskih ovlasti.
     */
     const {
       data: adminProfil,
@@ -174,7 +197,8 @@ export async function POST(
       !adminProfil ||
       adminProfil.uloga !==
         "administrator" ||
-      adminProfil.aktivan !== true
+      adminProfil.aktivan !==
+        true
     ) {
       return NextResponse.json(
         {
@@ -228,7 +252,7 @@ export async function POST(
     }
 
     /*
-      Dohvati termin iz baze.
+      Dohvati termin.
     */
     const {
       data: predavanje,
@@ -260,7 +284,7 @@ export async function POST(
     }
 
     /*
-      Dohvati naziv obrazovne skupine.
+      Dohvati skupinu.
     */
     const {
       data: skupina,
@@ -269,7 +293,9 @@ export async function POST(
       .from(
         "obrazovne_skupine"
       )
-      .select("naziv")
+      .select(
+        "id, naziv"
+      )
       .eq(
         "id",
         predavanje.skupina_id
@@ -291,6 +317,164 @@ export async function POST(
       );
     }
 
+    /*
+      Dohvati aktivna članstva skupine.
+    */
+    const {
+      data: clanstva,
+      error: clanstvaError,
+    } = await supabaseAdmin
+      .from(
+        "clanstva_skupina"
+      )
+      .select(
+        "korisnik_id"
+      )
+      .eq(
+        "skupina_id",
+        predavanje.skupina_id
+      )
+      .eq(
+        "status",
+        "aktivan"
+      );
+
+    if (
+      clanstvaError
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Nije moguće dohvatiti članove skupine.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    const kandidatIds = [
+      ...new Set(
+        (
+          clanstva ?? []
+        ).map(
+          (clanstvo) =>
+            clanstvo.korisnik_id
+        )
+      ),
+    ];
+
+    /*
+      Dohvati samo aktivne polaznike.
+    */
+    let polaznikIds: string[] =
+      [];
+
+    if (
+      kandidatIds.length >
+      0
+    ) {
+      const {
+        data: polaznici,
+        error:
+          polazniciError,
+      } = await supabaseAdmin
+        .from("profili")
+        .select("id")
+        .in(
+          "id",
+          kandidatIds
+        )
+        .eq(
+          "uloga",
+          "polaznik"
+        )
+        .eq(
+          "aktivan",
+          true
+        );
+
+      if (
+        polazniciError
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Nije moguće dohvatiti aktivne polaznike.",
+          },
+          {
+            status: 500,
+          }
+        );
+      }
+
+      polaznikIds = (
+        polaznici ?? []
+      ).map(
+        (polaznik) =>
+          polaznik.id
+      );
+    }
+
+    /*
+      Dohvati aktivnog profesora
+      koji je dodijeljen terminu.
+    */
+    let profesorId:
+      | string
+      | null = null;
+
+    if (
+      predavanje.profesor_id
+    ) {
+      const {
+        data: profesor,
+        error:
+          profesorError,
+      } = await supabaseAdmin
+        .from("profili")
+        .select(
+          "id, uloga, aktivan"
+        )
+        .eq(
+          "id",
+          predavanje.profesor_id
+        )
+        .eq(
+          "uloga",
+          "profesor"
+        )
+        .eq(
+          "aktivan",
+          true
+        )
+        .maybeSingle();
+
+      if (
+        profesorError
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Nije moguće dohvatiti profesora termina.",
+          },
+          {
+            status: 500,
+          }
+        );
+      }
+
+      if (
+        profesor
+      ) {
+        profesorId =
+          profesor.id;
+      }
+    }
+
+    /*
+      Formatiranje datuma.
+    */
     function formatDatum(
       vrijednost: string
     ) {
@@ -322,7 +506,8 @@ export async function POST(
     let naslov =
       "Učilište Maestro";
 
-    let poruka = "";
+    let poruka =
+      "";
 
     if (
       vrsta === "novo"
@@ -370,49 +555,99 @@ export async function POST(
 
     /*
       ==================================================
-      1. SPREMI U TABLICU OBAVIJESTI
+      SPREMANJE OBAVIJESTI
       ==================================================
+
+      Prvi zapis:
+      - cilj = skupina
+      - vide ga aktivni polaznici te skupine
+
+      Drugi zapis:
+      - cilj = korisnik
+      - vidi ga samo profesor tog termina
     */
-    const {
-      data: spremljenaObavijest,
-      error: obavijestError,
-    } = await supabaseAdmin
-      .from("obavijesti")
-      .insert({
-        naslov,
-        poruka,
-        link:
-          "/polaznik/raspored",
-        cilj:
-          "skupina",
-        skupina_id:
-          predavanje.skupina_id,
-        aktivna:
-          true,
-        datum_objave:
-          new Date().toISOString(),
-        created_by:
-          user.id,
-      })
-      .select("id")
-      .single();
+
+    const datumObjave =
+      new Date().toISOString();
+
+    const obavijestiZaSpremanje:
+      ObavijestZaSpremanje[] =
+      [
+        {
+          naslov,
+          poruka,
+          link:
+            "/polaznik/raspored",
+          cilj:
+            "skupina",
+          skupina_id:
+            predavanje.skupina_id,
+          korisnik_id:
+            null,
+          aktivna:
+            true,
+          datum_objave:
+            datumObjave,
+          created_by:
+            user.id,
+        },
+      ];
 
     if (
-      obavijestError ||
-      !spremljenaObavijest
+      profesorId
+    ) {
+      obavijestiZaSpremanje.push(
+        {
+          naslov,
+          poruka,
+          link:
+            "/profesor/raspored",
+          cilj:
+            "korisnik",
+          skupina_id:
+            null,
+          korisnik_id:
+            profesorId,
+          aktivna:
+            true,
+          datum_objave:
+            datumObjave,
+          created_by:
+            user.id,
+        }
+      );
+    }
+
+    const {
+      data:
+        spremljeneObavijesti,
+      error:
+        obavijestiError,
+    } = await supabaseAdmin
+      .from("obavijesti")
+      .insert(
+        obavijestiZaSpremanje
+      )
+      .select(
+        "id, cilj, skupina_id, korisnik_id"
+      );
+
+    if (
+      obavijestiError ||
+      !spremljeneObavijesti
     ) {
       console.error(
         "Greška spremanja obavijesti:",
-        obavijestError
+        obavijestiError
       );
 
       return NextResponse.json(
         {
           error:
-            "Raspored je spremljen, ali zapis u Obavijestima nije moguće spremiti.",
+            "Raspored je spremljen, ali zapise u Obavijestima nije moguće spremiti.",
 
           detalj:
-            obavijestError?.message ??
+            obavijestiError?.message ??
             "Nepoznata greška.",
         },
         {
@@ -423,136 +658,7 @@ export async function POST(
 
     /*
       ==================================================
-      2. DOHVATI POLAZNIKE SKUPINE
-      ==================================================
-    */
-    const {
-      data: clanstva,
-      error: clanstvaError,
-    } = await supabaseAdmin
-      .from(
-        "clanstva_skupina"
-      )
-      .select("korisnik_id")
-      .eq(
-        "skupina_id",
-        predavanje.skupina_id
-      )
-      .eq(
-        "status",
-        "aktivan"
-      );
-
-    if (clanstvaError) {
-      return NextResponse.json(
-        {
-          error:
-            "Obavijest je spremljena, ali nije moguće dohvatiti polaznike skupine.",
-        },
-        {
-          status: 500,
-        }
-      );
-    }
-
-    const kandidatIds = [
-      ...new Set(
-        (clanstva ?? []).map(
-          (clanstvo) =>
-            clanstvo.korisnik_id
-        )
-      ),
-    ];
-
-    let polaznikIds: string[] =
-      [];
-
-    if (
-      kandidatIds.length > 0
-    ) {
-      const {
-        data: polaznici,
-        error: polazniciError,
-      } = await supabaseAdmin
-        .from("profili")
-        .select("id")
-        .in(
-          "id",
-          kandidatIds
-        )
-        .eq(
-          "uloga",
-          "polaznik"
-        )
-        .eq(
-          "aktivan",
-          true
-        );
-
-      if (
-        polazniciError
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              "Obavijest je spremljena, ali nije moguće dohvatiti aktivne polaznike.",
-          },
-          {
-            status: 500,
-          }
-        );
-      }
-
-      polaznikIds = (
-        polaznici ?? []
-      ).map(
-        (polaznik) =>
-          polaznik.id
-      );
-    }
-
-    /*
-      ==================================================
-      3. DOHVATI PROFESORA
-      ==================================================
-    */
-    let profesorIds: string[] =
-      [];
-
-    if (
-      predavanje.profesor_id
-    ) {
-      const {
-        data: profesor,
-      } = await supabaseAdmin
-        .from("profili")
-        .select("id")
-        .eq(
-          "id",
-          predavanje.profesor_id
-        )
-        .eq(
-          "uloga",
-          "profesor"
-        )
-        .eq(
-          "aktivan",
-          true
-        )
-        .maybeSingle();
-
-      if (
-        profesor
-      ) {
-        profesorIds = [
-          profesor.id,
-        ];
-      }
-    }
-
-    /*
-      ==================================================
-      4. ONESIGNAL PUSH
+      ONESIGNAL PUSH
       ==================================================
     */
     async function posaljiPush(
@@ -560,7 +666,8 @@ export async function POST(
       url: string
     ) {
       if (
-        korisnici.length === 0
+        korisnici.length ===
+        0
       ) {
         return 0;
       }
@@ -569,7 +676,8 @@ export async function POST(
         await fetch(
           "https://api.onesignal.com/notifications",
           {
-            method: "POST",
+            method:
+              "POST",
 
             headers: {
               "Content-Type":
@@ -587,17 +695,20 @@ export async function POST(
                 target_channel:
                   "push",
 
-                include_aliases: {
-                  external_id:
-                    korisnici,
-                },
+                include_aliases:
+                  {
+                    external_id:
+                      korisnici,
+                  },
 
                 headings: {
-                  en: naslov,
+                  en:
+                    naslov,
                 },
 
                 contents: {
-                  en: poruka,
+                  en:
+                    poruka,
                 },
 
                 url,
@@ -624,11 +735,22 @@ export async function POST(
       return korisnici.length;
     }
 
+    /*
+      Push polaznicima.
+    */
     const brojPolaznika =
       await posaljiPush(
         polaznikIds,
         "https://app.uciliste-maestro.hr/polaznik/raspored"
       );
+
+    /*
+      Push profesoru.
+    */
+    const profesorIds =
+      profesorId
+        ? [profesorId]
+        : [];
 
     const brojProfesora =
       await posaljiPush(
@@ -636,25 +758,23 @@ export async function POST(
         "https://app.uciliste-maestro.hr/profesor/raspored"
       );
 
-    /*
-      Ove dvije vrijednosti nam potvrđuju
-      da je nova verzija rute stvarno aktivna.
-    */
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json(
+      {
+        success: true,
 
-      obavijest_spremljena:
-        true,
+        obavijesti_spremljene:
+          spremljeneObavijesti.length,
 
-      obavijest_id:
-        spremljenaObavijest.id,
+        obavijesti:
+          spremljeneObavijesti,
 
-      polaznici:
-        brojPolaznika,
+        polaznici:
+          brojPolaznika,
 
-      profesori:
-        brojProfesora,
-    });
+        profesori:
+          brojProfesora,
+      }
+    );
   } catch (error) {
     console.error(
       "Greška automatske obavijesti rasporeda:",
