@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import {
+  Bell,
+  ExternalLink,
+  Info,
+} from "lucide-react";
+
 import { supabase } from "@/lib/supabase";
 import PolaznikNav from "@/components/PolaznikNav";
 
@@ -31,6 +38,9 @@ export default function ObavijestiPage() {
   }, []);
 
   async function ucitajObavijesti() {
+    setUcitavanje(true);
+    setGreska("");
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -40,13 +50,17 @@ export default function ObavijestiPage() {
       return;
     }
 
-    const { data: profil } = await supabase
+    const {
+      data: profil,
+      error: profilError,
+    } = await supabase
       .from("profili")
       .select("uloga, aktivan")
       .eq("id", user.id)
       .single();
 
     if (
+      profilError ||
       !profil ||
       profil.uloga !== "polaznik" ||
       profil.aktivan !== true
@@ -55,10 +69,12 @@ export default function ObavijestiPage() {
       return;
     }
 
-    const { data, error } =
-      await supabase.rpc(
-        "moje_obavijesti"
-      );
+    const {
+      data,
+      error,
+    } = await supabase.rpc(
+      "moje_obavijesti"
+    );
 
     if (error) {
       setGreska(
@@ -71,106 +87,167 @@ export default function ObavijestiPage() {
     setUcitavanje(false);
   }
 
-  function formatDatumVrijeme(
+  function formatDatum(
     datum: string
   ) {
     return new Date(
       datum
-    ).toLocaleString("hr-HR", {
-      day: "numeric",
-      month: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    ).toLocaleDateString(
+      "hr-HR",
+      {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }
+    );
+  }
+
+  function formatVrijeme(
+    datum: string
+  ) {
+    return new Date(
+      datum
+    ).toLocaleTimeString(
+      "hr-HR",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
   }
 
   return (
-    <main className="min-h-screen bg-neutral-100 pb-28">
-      <header className="bg-white px-5 py-5 shadow-sm">
-        <div className="mx-auto max-w-xl">
-          <p className="text-sm font-bold uppercase tracking-wide text-red-600">
+    <main className="min-h-[100dvh] w-full overflow-x-hidden bg-[#f4f6f8] pb-28">
+      <header className="w-full border-b border-[#e2e7ec] bg-white">
+        <div className="w-full px-4 py-6 md:mx-auto md:max-w-[640px] md:px-5">
+          <p className="text-[13px] font-bold uppercase tracking-[0.09em] text-[#c9252d]">
             Učilište Maestro
           </p>
 
-          <h1 className="mt-1 text-3xl font-bold">
+          <h1 className="mt-1 text-[32px] font-extrabold tracking-[-0.025em] text-[#17202a]">
             Obavijesti
           </h1>
 
-          <p className="mt-2 text-base text-neutral-500">
-            Važne informacije Učilišta
+          <p className="mt-2 text-[17px] leading-6 text-[#66717d]">
+            Važne informacije, promjene i obavijesti
+            Učilišta.
           </p>
         </div>
       </header>
 
-      <div className="mx-auto max-w-xl px-5 py-6">
+      <div className="w-full px-4 py-6 md:mx-auto md:max-w-[640px] md:px-5">
         {ucitavanje ? (
-          <p className="text-lg text-neutral-500">
-            Učitavanje...
-          </p>
+          <div className="rounded-[22px] border border-[#dfe5ea] bg-white p-6">
+            <p className="text-[17px] font-medium text-[#66717d]">
+              Učitavanje obavijesti...
+            </p>
+          </div>
         ) : greska ? (
-          <div className="rounded-2xl bg-red-50 p-5 text-base text-red-700">
+          <div className="rounded-[22px] border border-red-200 bg-red-50 p-5 text-[17px] leading-7 text-red-700">
             {greska}
           </div>
         ) : obavijesti.length === 0 ? (
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold">
-              Nema obavijesti
+          <section className="rounded-[24px] border border-[#dfe5ea] bg-white p-6 shadow-[0_6px_20px_rgba(23,50,77,0.05)]">
+            <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-[#eef3f7] text-[#17324d]">
+              <Bell size={25} />
+            </div>
+
+            <h2 className="mt-5 text-[22px] font-bold text-[#17202a]">
+              Nema novih obavijesti
             </h2>
 
-            <p className="mt-2 text-base text-neutral-500">
-              Trenutačno nema novih
-              obavijesti.
+            <p className="mt-2 text-[17px] leading-7 text-[#66717d]">
+              Nove informacije Učilišta bit će
+              prikazane ovdje.
             </p>
-          </div>
+          </section>
         ) : (
-          <div className="space-y-4">
-            {obavijesti.map(
-              (obavijest) => (
-                <article
-                  key={
-                    obavijest.obavijest_id
-                  }
-                  className="rounded-2xl bg-white p-5 shadow-sm"
-                >
-                  <div className="flex gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-xl">
-                      🔔
-                    </div>
+          <>
+            <section className="mb-6 flex items-center justify-between rounded-[20px] border border-[#dfe5ea] bg-white px-5 py-4">
+              <div>
+                <p className="text-[13px] font-bold uppercase tracking-wide text-[#8b949e]">
+                  Vaše obavijesti
+                </p>
 
-                    <div className="min-w-0 flex-1">
-                      <h2 className="text-xl font-bold leading-tight">
-                        {obavijest.naslov}
-                      </h2>
+                <p className="mt-1 text-[20px] font-bold text-[#17202a]">
+                  {obavijesti.length}{" "}
+                  {obavijesti.length === 1
+                    ? "obavijest"
+                    : "obavijesti"}
+                </p>
+              </div>
 
-                      <p className="mt-3 text-base leading-7 text-neutral-700">
-                        {obavijest.poruka}
-                      </p>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef3f7] text-[#17324d]">
+                <Bell size={24} />
+              </div>
+            </section>
 
-                      {obavijest.link && (
-                        <a
-                          href={
-                            obavijest.link
+            <div className="overflow-hidden rounded-[24px] border border-[#dfe5ea] bg-white shadow-[0_6px_20px_rgba(23,50,77,0.05)]">
+              {obavijesti.map(
+                (obavijest, index) => (
+                  <article
+                    key={
+                      obavijest.obavijest_id
+                    }
+                    className={`p-5 ${
+                      index !==
+                      obavijesti.length - 1
+                        ? "border-b border-[#e8ecef]"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+                        <Info size={22} />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-col gap-1">
+                          <h2 className="text-[20px] font-bold leading-6 text-[#17202a]">
+                            {
+                              obavijest.naslov
+                            }
+                          </h2>
+
+                          <p className="text-[14px] font-medium text-[#929ba4]">
+                            {formatDatum(
+                              obavijest.datum_objave
+                            )}
+                            {" · "}
+                            {formatVrijeme(
+                              obavijest.datum_objave
+                            )}
+                          </p>
+                        </div>
+
+                        <p className="mt-3 text-[17px] leading-7 text-[#4f5b66]">
+                          {
+                            obavijest.poruka
                           }
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-4 inline-flex min-h-12 items-center rounded-xl bg-red-600 px-5 text-base font-bold text-white"
-                        >
-                          Otvori poveznicu
-                        </a>
-                      )}
+                        </p>
 
-                      <p className="mt-4 text-sm text-neutral-400">
-                        {formatDatumVrijeme(
-                          obavijest.datum_objave
+                        {obavijest.link && (
+                          <a
+                            href={
+                              obavijest.link
+                            }
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-4 inline-flex min-h-[48px] items-center gap-2 rounded-xl bg-[#17324d] px-4 text-[16px] font-bold text-white"
+                          >
+                            Otvori poveznicu
+                            <ExternalLink
+                              size={18}
+                            />
+                          </a>
                         )}
-                      </p>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              )
-            )}
-          </div>
+                  </article>
+                )
+              )}
+            </div>
+          </>
         )}
       </div>
 
