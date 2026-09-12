@@ -14,21 +14,43 @@ export const metadata: Metadata = {
   },
 
   description:
-    "Aplikacija Učilišta Maestro za polaznike i profesore.",
+    "Aplikacija Učilišta Maestro za polaznike, profesore i administraciju.",
 
-  applicationName:
-    "Učilište Maestro",
-
-  manifest:
-    "/manifest.webmanifest",
+  manifest: "/manifest.webmanifest",
 
   icons: {
-    icon: "/icon.svg",
+    icon: [
+      {
+        url: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+
+    apple: [
+      {
+        url: "/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+
+    shortcut: [
+      {
+        url: "/icon-192.png",
+        type: "image/png",
+      },
+    ],
   },
 
   appleWebApp: {
     capable: true,
-    title: "Maestro",
+    title: "Učilište Maestro",
     statusBarStyle: "default",
   },
 };
@@ -37,7 +59,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#c9252d",
+  themeColor: "#17324d",
 };
 
 export default function RootLayout({
@@ -49,6 +71,7 @@ export default function RootLayout({
     <html lang="hr">
       <body>
         <OneSignalInit />
+
         {children}
       </body>
     </html>
