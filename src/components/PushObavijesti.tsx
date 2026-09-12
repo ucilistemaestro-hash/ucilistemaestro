@@ -1,12 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import OneSignal from "react-onesignal";
+import { Bell, BellOff, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
+type Status =
+  | "default"
+  | "granted"
+  | "denied"
+  | "unsupported";
+
 export default function PushObavijesti() {
-  const [poruka, setPoruka] = useState("");
-  const [ucitavanje, setUcitavanje] = useState(false);
+  const [status, setStatus] =
+    useState<Status>("default");
+
+  const [ucitavanje, setUcitavanje] =
+    useState(false);
+
+  const [poruka, setPoruka] =
+    useState("");
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !("Notification" in window)
+    ) {
+      setStatus("unsupported");
+      return;
+    }
+
+    setStatus(Notification.permission);
+  }, []);
 
   async function ukljuciObavijesti() {
     try {
@@ -22,59 +47,100 @@ export default function PushObavijesti() {
         return;
       }
 
-      // Povezuje OneSignal uređaj s našim Supabase korisnikom.
       await OneSignal.login(user.id);
 
-      // Otvara sistemski zahtjev za dopuštenje obavijesti.
       await OneSignal.Notifications.requestPermission();
 
-      if (OneSignal.Notifications.permission) {
-        setPoruka("Obavijesti su uključene ✅");
-      } else {
-        setPoruka("Obavijesti nisu dopuštene.");
+      if ("Notification" in window) {
+        setStatus(Notification.permission);
       }
     } catch (error) {
       console.error(error);
-      setPoruka("Nije moguće uključiti obavijesti.");
+
+      setPoruka(
+        "Obavijesti trenutačno nije moguće uključiti."
+      );
     } finally {
       setUcitavanje(false);
     }
   }
 
-  return (
-    <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm">
-      <div className="flex items-start gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50">
-          🔔
+  /*
+    Kad su push obavijesti već uključene,
+    više ne zauzimamo prostor na početnoj stranici.
+  */
+  if (status === "granted") {
+    return null;
+  }
+
+  if (status === "unsupported") {
+    return null;
+  }
+
+  if (status === "denied") {
+    return (
+      <div className="mt-6 flex items-start gap-4 rounded-3xl border border-red-100 bg-white p-5 shadow-sm">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+          <BellOff size={24} />
         </div>
 
-        <div className="flex-1">
-          <h3 className="font-bold text-neutral-900">
-            Push obavijesti
-          </h3>
+        <div>
+          <h2 className="text-[18px] font-bold text-neutral-900">
+            Obavijesti su blokirane
+          </h2>
 
-          <p className="mt-1 text-sm text-neutral-500">
-            Primajte obavijesti o rasporedu, promjenama termina i
-            važnim informacijama.
+          <p className="mt-1 text-[16px] leading-6 text-neutral-600">
+            Dopuštenje možete ponovno uključiti u
+            postavkama preglednika.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <section className="mt-6 rounded-3xl bg-red-600 p-5 text-white shadow-sm">
+      <div className="flex items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">
+          <Bell size={25} />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[20px] font-bold">
+            Uključite obavijesti
+          </h2>
+
+          <p className="mt-1 text-[16px] leading-6 text-red-50">
+            Primajte promjene rasporeda i važne
+            informacije odmah na mobitel.
           </p>
 
           <button
+            type="button"
             onClick={ukljuciObavijesti}
             disabled={ucitavanje}
-            className="mt-4 rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+            className="mt-4 flex min-h-[50px] items-center justify-center rounded-2xl bg-white px-5 text-[16px] font-bold text-red-600 disabled:opacity-60"
           >
-            {ucitavanje
-              ? "Uključivanje..."
-              : "Uključi obavijesti"}
+            {ucitavanje ? (
+              <>
+                <Loader2
+                  size={20}
+                  className="mr-2 animate-spin"
+                />
+                Uključivanje...
+              </>
+            ) : (
+              "Uključi obavijesti"
+            )}
           </button>
 
           {poruka && (
-            <p className="mt-3 text-sm text-neutral-600">
+            <p className="mt-3 text-[15px] text-white">
               {poruka}
             </p>
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
