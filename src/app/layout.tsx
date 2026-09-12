@@ -31,19 +31,13 @@ export const metadata: Metadata = {
     title: "Maestro",
     statusBarStyle: "default",
   },
-
-  formatDetection: {
-    telephone: true,
-    email: true,
-    address: true,
-  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#dc2626",
+  themeColor: "#c9252d",
 };
 
 export default function RootLayout({

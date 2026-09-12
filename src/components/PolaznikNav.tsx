@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+
 import {
   Bell,
   CalendarDays,
@@ -36,8 +37,8 @@ export default function PolaznikNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-50 border-t border-[#e2e7ec] bg-white shadow-[0_-6px_24px_rgba(18,36,55,0.06)]">
-      <div className="mx-auto grid w-full max-w-[560px] grid-cols-4">
+    <nav className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-50 w-full border-t border-[#e2e7ec] bg-white shadow-[0_-6px_24px_rgba(18,36,55,0.06)]">
+      <div className="grid w-full grid-cols-4 md:mx-auto md:max-w-[640px]">
         {stavke.map((stavka) => {
           const aktivna =
             stavka.putanja === "/polaznik"
@@ -50,7 +51,9 @@ export default function PolaznikNav() {
             <button
               key={stavka.putanja}
               type="button"
-              onClick={() => router.push(stavka.putanja)}
+              onClick={() =>
+                router.push(stavka.putanja)
+              }
               className={`relative flex min-h-[78px] flex-col items-center justify-center gap-1.5 ${
                 aktivna
                   ? "text-[#17324d]"
@@ -58,12 +61,12 @@ export default function PolaznikNav() {
               }`}
             >
               <Ikona
-                size={25}
+                size={26}
                 strokeWidth={aktivna ? 2.5 : 2}
               />
 
               <span
-                className={`text-[13px] ${
+                className={`text-[14px] ${
                   aktivna
                     ? "font-bold"
                     : "font-semibold"

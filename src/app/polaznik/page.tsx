@@ -185,7 +185,7 @@ export default function PolaznikPage() {
 
   if (ucitavanje) {
     return (
-      <main className="flex min-h-[100dvh] items-center justify-center bg-[#f4f6f8] px-6">
+      <main className="flex min-h-[100dvh] w-full items-center justify-center bg-[#f4f6f8] px-4">
         <p className="text-[18px] font-semibold text-[#66717d]">
           Učitavanje...
         </p>
@@ -194,15 +194,15 @@ export default function PolaznikPage() {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-[#f4f6f8] pb-28">
-      <header className="border-b border-[#e2e7ec] bg-white">
-        <div className="mx-auto flex w-full max-w-[560px] items-center justify-between px-5 py-5">
+    <main className="min-h-[100dvh] w-full overflow-x-hidden bg-[#f4f6f8] pb-28">
+      <header className="w-full border-b border-[#e2e7ec] bg-white">
+        <div className="flex w-full items-center justify-between px-4 py-5 md:mx-auto md:max-w-[640px] md:px-5">
           <div>
-            <div className="text-[26px] font-black tracking-[-0.02em] text-[#c9252d]">
+            <div className="text-[28px] font-black tracking-[-0.02em] text-[#c9252d]">
               MAESTRO
             </div>
 
-            <p className="mt-0.5 text-[13px] font-medium text-[#66717d]">
+            <p className="mt-0.5 text-[14px] font-medium text-[#66717d]">
               Učilište za obrazovanje odraslih
             </p>
           </div>
@@ -210,70 +210,75 @@ export default function PolaznikPage() {
           <button
             type="button"
             onClick={() =>
-              router.push("/polaznik/profil")
+              router.push(
+                "/polaznik/profil"
+              )
             }
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-[#eef2f5] text-[#17324d]"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#eef2f5] text-[#17324d]"
           >
             <UserRound size={23} />
           </button>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-[560px] px-5 py-7">
+      <div className="w-full px-4 py-7 md:mx-auto md:max-w-[640px] md:px-5">
         <section>
-          <p className="text-[16px] font-medium text-[#66717d]">
+          <p className="text-[17px] font-medium text-[#66717d]">
             Dobro došli,
           </p>
 
-          <h1 className="mt-1 text-[32px] font-extrabold leading-[1.15] tracking-[-0.025em] text-[#17202a]">
+          <h1 className="mt-1 text-[34px] font-extrabold leading-[1.12] tracking-[-0.025em] text-[#17202a]">
             {ime}
           </h1>
 
-          <p className="mt-2 text-[17px] leading-6 text-[#66717d]">
-            Pregled vaših predavanja i važnih informacija.
+          <p className="mt-2 text-[18px] leading-7 text-[#66717d]">
+            Pregled vaših predavanja i važnih
+            informacija.
           </p>
         </section>
 
         <PushObavijesti />
 
         {greska && (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-[16px] leading-6 text-red-700">
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-[17px] leading-7 text-red-700">
             {greska}
           </div>
         )}
 
         {sljedece ? (
-          <section className="mt-7 overflow-hidden rounded-[24px] border border-[#dfe5ea] bg-white shadow-[0_8px_24px_rgba(23,50,77,0.06)]">
+          <section className="mt-7 w-full overflow-hidden rounded-[24px] border border-[#dfe5ea] bg-white shadow-[0_8px_24px_rgba(23,50,77,0.06)]">
             <div className="flex items-center justify-between bg-[#17324d] px-5 py-4">
               <div>
-                <p className="text-[13px] font-bold uppercase tracking-[0.09em] text-white/70">
+                <p className="text-[14px] font-bold uppercase tracking-[0.09em] text-white/70">
                   Sljedeće predavanje
                 </p>
 
-                <p className="mt-1 text-[15px] font-semibold text-white">
-                  {formatDatum(sljedece.datum)}
+                <p className="mt-1 text-[16px] font-semibold text-white">
+                  {formatDatum(
+                    sljedece.datum
+                  )}
                 </p>
               </div>
 
               <CalendarDays
-                size={25}
+                size={26}
                 className="text-white/80"
               />
             </div>
 
             <div className="p-5">
-              <h2 className="text-[25px] font-extrabold leading-tight tracking-[-0.02em] text-[#17202a]">
+              <h2 className="text-[27px] font-extrabold leading-tight tracking-[-0.02em] text-[#17202a]">
                 {sljedece.naziv}
               </h2>
 
-              <p className="mt-2 text-[16px] font-bold text-[#c9252d]">
+              <p className="mt-2 text-[17px] font-bold text-[#c9252d]">
                 {sljedece.skupina_naziv}
               </p>
 
-              <div className="mt-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
-                    <Clock3 size={20} />
+              <div className="mt-6 space-y-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+                    <Clock3 size={21} />
                   </div>
 
                   <div>
@@ -281,17 +286,23 @@ export default function PolaznikPage() {
                       Vrijeme
                     </p>
 
-                    <p className="mt-0.5 text-[17px] font-semibold text-[#28333e]">
-                      {sljedece.vrijeme_pocetka.slice(0, 5)}
+                    <p className="mt-0.5 text-[18px] font-semibold text-[#28333e]">
+                      {sljedece.vrijeme_pocetka.slice(
+                        0,
+                        5
+                      )}
                       {" – "}
-                      {sljedece.vrijeme_zavrsetka.slice(0, 5)}
+                      {sljedece.vrijeme_zavrsetka.slice(
+                        0,
+                        5
+                      )}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
-                    <GraduationCap size={21} />
+                <div className="flex items-center gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+                    <GraduationCap size={22} />
                   </div>
 
                   <div>
@@ -299,30 +310,30 @@ export default function PolaznikPage() {
                       Profesor
                     </p>
 
-                    <p className="mt-0.5 text-[17px] font-semibold text-[#28333e]">
+                    <p className="mt-0.5 text-[18px] font-semibold text-[#28333e]">
                       {sljedece.profesor_ime ||
                         "Profesor nije naveden"}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
-                    <MapPin size={20} />
+                <div className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+                    <MapPin size={21} />
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-[13px] font-semibold uppercase tracking-wide text-[#8b949e]">
                       Lokacija
                     </p>
 
-                    <p className="mt-0.5 text-[17px] font-semibold text-[#28333e]">
+                    <p className="mt-0.5 text-[18px] font-semibold text-[#28333e]">
                       {sljedece.ucionica_naziv ??
                         "Online / bez učionice"}
                     </p>
 
                     {sljedece.lokacija && (
-                      <p className="mt-1 text-[15px] leading-6 text-[#66717d]">
+                      <p className="mt-1 text-[16px] leading-6 text-[#66717d]">
                         {sljedece.lokacija}
                       </p>
                     )}
@@ -336,7 +347,7 @@ export default function PolaznikPage() {
                     Napomena
                   </p>
 
-                  <p className="mt-1 text-[16px] leading-6 text-[#4f5b66]">
+                  <p className="mt-1 text-[17px] leading-6 text-[#4f5b66]">
                     {sljedece.napomena}
                   </p>
                 </div>
@@ -344,36 +355,38 @@ export default function PolaznikPage() {
             </div>
           </section>
         ) : (
-          <section className="mt-7 rounded-[24px] border border-[#dfe5ea] bg-white p-6">
-            <h2 className="text-[21px] font-bold text-[#17202a]">
+          <section className="mt-7 w-full rounded-[24px] border border-[#dfe5ea] bg-white p-6">
+            <h2 className="text-[22px] font-bold text-[#17202a]">
               Nema nadolazećih predavanja
             </h2>
 
-            <p className="mt-2 text-[16px] leading-6 text-[#66717d]">
-              Novi termini pojavit će se ovdje čim budu
-              objavljeni.
+            <p className="mt-2 text-[17px] leading-7 text-[#66717d]">
+              Novi termini pojavit će se ovdje
+              čim budu objavljeni.
             </p>
           </section>
         )}
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid w-full grid-cols-2 gap-3">
           <button
             type="button"
             onClick={() =>
-              router.push("/polaznik/raspored")
+              router.push(
+                "/polaznik/raspored"
+              )
             }
-            className="rounded-[20px] border border-[#dfe5ea] bg-white p-5 text-left shadow-[0_5px_18px_rgba(23,50,77,0.04)]"
+            className="min-w-0 rounded-[20px] border border-[#dfe5ea] bg-white p-5 text-left shadow-[0_5px_18px_rgba(23,50,77,0.04)]"
           >
             <CalendarDays
-              size={26}
+              size={27}
               className="text-[#17324d]"
             />
 
-            <div className="mt-5 text-[30px] font-extrabold leading-none text-[#17202a]">
+            <div className="mt-5 text-[32px] font-extrabold leading-none text-[#17202a]">
               {buducaPredavanja.length}
             </div>
 
-            <p className="mt-2 text-[14px] font-semibold leading-5 text-[#66717d]">
+            <p className="mt-2 text-[15px] font-semibold leading-5 text-[#66717d]">
               Nadolazećih termina
             </p>
           </button>
@@ -381,20 +394,22 @@ export default function PolaznikPage() {
           <button
             type="button"
             onClick={() =>
-              router.push("/polaznik/obavijesti")
+              router.push(
+                "/polaznik/obavijesti"
+              )
             }
-            className="rounded-[20px] border border-[#dfe5ea] bg-white p-5 text-left shadow-[0_5px_18px_rgba(23,50,77,0.04)]"
+            className="min-w-0 rounded-[20px] border border-[#dfe5ea] bg-white p-5 text-left shadow-[0_5px_18px_rgba(23,50,77,0.04)]"
           >
             <Bell
-              size={26}
+              size={27}
               className="text-[#17324d]"
             />
 
-            <div className="mt-5 text-[30px] font-extrabold leading-none text-[#17202a]">
+            <div className="mt-5 text-[32px] font-extrabold leading-none text-[#17202a]">
               {obavijesti.length}
             </div>
 
-            <p className="mt-2 text-[14px] font-semibold leading-5 text-[#66717d]">
+            <p className="mt-2 text-[15px] font-semibold leading-5 text-[#66717d]">
               Obavijesti
             </p>
           </button>
@@ -403,31 +418,33 @@ export default function PolaznikPage() {
         <button
           type="button"
           onClick={() =>
-            router.push("/polaznik/raspored")
+            router.push(
+              "/polaznik/raspored"
+            )
           }
-          className="mt-4 flex min-h-[58px] w-full items-center justify-between rounded-[18px] bg-[#17324d] px-5 text-left text-white"
+          className="mt-4 flex min-h-[62px] w-full items-center justify-between rounded-[18px] bg-[#17324d] px-5 text-left text-white"
         >
           <div>
-            <p className="text-[16px] font-bold">
+            <p className="text-[17px] font-bold">
               Pogledaj cijeli raspored
             </p>
 
-            <p className="mt-0.5 text-[13px] text-white/70">
+            <p className="mt-0.5 text-[14px] text-white/70">
               Svi nadolazeći termini
             </p>
           </div>
 
-          <ArrowRight size={22} />
+          <ArrowRight size={23} />
         </button>
 
-        <section className="mt-9">
-          <div className="flex items-center justify-between">
+        <section className="mt-9 w-full">
+          <div className="flex items-end justify-between gap-4">
             <div>
               <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-[#c9252d]">
                 Aktualno
               </p>
 
-              <h2 className="mt-1 text-[24px] font-extrabold tracking-[-0.02em] text-[#17202a]">
+              <h2 className="mt-1 text-[25px] font-extrabold tracking-[-0.02em] text-[#17202a]">
                 Obavijesti
               </h2>
             </div>
@@ -435,28 +452,34 @@ export default function PolaznikPage() {
             <button
               type="button"
               onClick={() =>
-                router.push("/polaznik/obavijesti")
+                router.push(
+                  "/polaznik/obavijesti"
+                )
               }
-              className="flex min-h-11 items-center gap-1 text-[15px] font-bold text-[#17324d]"
+              className="flex min-h-11 shrink-0 items-center gap-1 text-[16px] font-bold text-[#17324d]"
             >
               Prikaži sve
-              <ArrowRight size={18} />
+              <ArrowRight size={19} />
             </button>
           </div>
 
-          {najnovijeObavijesti.length === 0 ? (
-            <div className="mt-4 rounded-[20px] border border-[#dfe5ea] bg-white p-5 text-[16px] text-[#66717d]">
+          {najnovijeObavijesti.length ===
+          0 ? (
+            <div className="mt-4 w-full rounded-[20px] border border-[#dfe5ea] bg-white p-5 text-[17px] text-[#66717d]">
               Trenutačno nema novih obavijesti.
             </div>
           ) : (
-            <div className="mt-4 overflow-hidden rounded-[22px] border border-[#dfe5ea] bg-white">
+            <div className="mt-4 w-full overflow-hidden rounded-[22px] border border-[#dfe5ea] bg-white">
               {najnovijeObavijesti.map(
                 (obavijest, index) => (
                   <article
-                    key={obavijest.obavijest_id}
+                    key={
+                      obavijest.obavijest_id
+                    }
                     className={`flex gap-4 p-5 ${
                       index !==
-                      najnovijeObavijesti.length - 1
+                      najnovijeObavijesti.length -
+                        1
                         ? "border-b border-[#e8ecef]"
                         : ""
                     }`}
@@ -466,15 +489,15 @@ export default function PolaznikPage() {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-[18px] font-bold leading-6 text-[#17202a]">
+                      <h3 className="text-[19px] font-bold leading-6 text-[#17202a]">
                         {obavijest.naslov}
                       </h3>
 
-                      <p className="mt-1.5 text-[16px] leading-6 text-[#5e6974]">
+                      <p className="mt-1.5 text-[17px] leading-6 text-[#5e6974]">
                         {obavijest.poruka}
                       </p>
 
-                      <p className="mt-3 text-[13px] font-medium text-[#929ba4]">
+                      <p className="mt-3 text-[14px] font-medium text-[#929ba4]">
                         {formatDatumObjave(
                           obavijest.datum_objave
                         )}
