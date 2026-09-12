@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import OneSignal from "react-onesignal";
-import { Bell, BellOff, Loader2 } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  Loader2,
+} from "lucide-react";
+
 import { supabase } from "@/lib/supabase";
 
 type Status =
@@ -65,53 +70,50 @@ export default function PushObavijesti() {
     }
   }
 
-  /*
-    Kad su push obavijesti već uključene,
-    više ne zauzimamo prostor na početnoj stranici.
-  */
-  if (status === "granted") {
-    return null;
-  }
-
-  if (status === "unsupported") {
+  if (
+    status === "granted" ||
+    status === "unsupported"
+  ) {
     return null;
   }
 
   if (status === "denied") {
     return (
-      <div className="mt-6 flex items-start gap-4 rounded-3xl border border-red-100 bg-white p-5 shadow-sm">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600">
-          <BellOff size={24} />
-        </div>
+      <section className="mt-6 rounded-[28px] border border-[#29292f] bg-[#16161a] p-5">
+        <div className="flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#24242a] text-red-500">
+            <BellOff size={27} />
+          </div>
 
-        <div>
-          <h2 className="text-[18px] font-bold text-neutral-900">
-            Obavijesti su blokirane
-          </h2>
+          <div>
+            <h2 className="text-[20px] font-bold text-white">
+              Obavijesti su blokirane
+            </h2>
 
-          <p className="mt-1 text-[16px] leading-6 text-neutral-600">
-            Dopuštenje možete ponovno uključiti u
-            postavkama preglednika.
-          </p>
+            <p className="mt-2 text-[16px] leading-6 text-[#9b9ba4]">
+              Dopuštenje možete ponovno uključiti
+              u postavkama preglednika.
+            </p>
+          </div>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <section className="mt-6 rounded-3xl bg-red-600 p-5 text-white shadow-sm">
+    <section className="mt-6 rounded-[30px] bg-red-600 p-6 shadow-[0_15px_40px_rgba(220,38,38,0.18)]">
       <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15">
-          <Bell size={25} />
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-white">
+          <Bell size={27} />
         </div>
 
         <div className="min-w-0 flex-1">
-          <h2 className="text-[20px] font-bold">
+          <h2 className="text-[21px] font-black text-white">
             Uključite obavijesti
           </h2>
 
-          <p className="mt-1 text-[16px] leading-6 text-red-50">
-            Primajte promjene rasporeda i važne
+          <p className="mt-2 text-[16px] leading-6 text-red-50">
+            Primajte promjene termina i važne
             informacije odmah na mobitel.
           </p>
 
@@ -119,12 +121,12 @@ export default function PushObavijesti() {
             type="button"
             onClick={ukljuciObavijesti}
             disabled={ucitavanje}
-            className="mt-4 flex min-h-[50px] items-center justify-center rounded-2xl bg-white px-5 text-[16px] font-bold text-red-600 disabled:opacity-60"
+            className="mt-5 flex min-h-[54px] w-full items-center justify-center rounded-2xl bg-white px-5 text-[17px] font-black text-red-600 disabled:opacity-60"
           >
             {ucitavanje ? (
               <>
                 <Loader2
-                  size={20}
+                  size={21}
                   className="mr-2 animate-spin"
                 />
                 Uključivanje...

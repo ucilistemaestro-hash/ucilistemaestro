@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f4f5;
-  --foreground: #18181b;
+  --background: #0b0b0d;
+  --foreground: #f7f7f7;
 }
 
 *,
@@ -14,8 +14,9 @@
 html {
   width: 100%;
   min-height: 100%;
+  margin: 0;
   overflow-x: hidden;
-  background: var(--background);
+
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -27,7 +28,6 @@ body {
   margin: 0;
   overflow-x: hidden;
 
-  background: var(--background);
   color: var(--foreground);
 
   font-family:
@@ -55,6 +55,12 @@ button {
   cursor: pointer;
 }
 
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
 img,
 svg,
 video,
@@ -74,21 +80,9 @@ h6 {
   overflow-wrap: break-word;
 }
 
-input,
-textarea,
-select {
-  font-size: 16px;
-}
-
 a,
 button {
   -webkit-tap-highlight-color: transparent;
-}
-
-@media (max-width: 640px) {
-  html {
-    font-size: 17px;
-  }
 }
 
 .mobile-bottom-nav {
