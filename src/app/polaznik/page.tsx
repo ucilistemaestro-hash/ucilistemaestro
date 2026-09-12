@@ -1,3 +1,4 @@
+import PushObavijesti from "@/components/PushObavijesti";
 "use client";
 
 import { useEffect, useState } from "react";
@@ -179,6 +180,7 @@ export default function PolaznikPage() {
         <h1 className="mt-1 text-2xl font-bold">
           {ime} 👋
         </h1>
+        <PushObavijesti />
 
         {greska && (
           <div className="mt-5 rounded-2xl bg-red-50 p-4 text-sm text-red-700">
