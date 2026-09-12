@@ -20,6 +20,15 @@ type Obavijest = {
   datum_objave: string;
 };
 
+type PushOdgovor = {
+  success?: boolean;
+  poslano?: boolean;
+  brojKorisnika?: number;
+  pushId?: string | null;
+  message?: string;
+  error?: string;
+};
+
 export default function ObavijestiPage() {
   const router = useRouter();
 
@@ -36,6 +45,7 @@ export default function ObavijestiPage() {
   const [spremanje, setSpremanje] = useState(false);
   const [greska, setGreska] = useState("");
   const [uspjeh, setUspjeh] = useState("");
+  const [upozorenje, setUpozorenje] = useState("");
 
   useEffect(() => {
     provjeriPristup();
@@ -102,8 +112,13 @@ export default function ObavijestiPage() {
 
     setGreska("");
     setUspjeh("");
+    setUpozorenje("");
 
-    if (!naslov.trim() || !poruka.trim()) {
+    const cistiNaslov = naslov.trim();
+    const cistaPoruka = poruka.trim();
+    const cistiLink = link.trim();
+
+    if (!cistiNaslov || !cistaPoruka) {
       setGreska("Naslov i poruka su obavezni.");
       return;
     }
@@ -114,48 +129,112 @@ export default function ObavijestiPage() {
     }
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (!user) {
-      setGreska("Prijava je istekla.");
+    if (!session?.user || !session.access_token) {
+      setGreska("Prijava je istekla. Prijavite se ponovno.");
       return;
     }
 
     setSpremanje(true);
 
-    const { error } = await supabase
-      .from("obavijesti")
-      .insert({
-        naslov: naslov.trim(),
-        poruka: poruka.trim(),
-        link: link.trim() || null,
-        cilj,
-        skupina_id:
-          cilj === "skupina" ? skupinaId : null,
-        created_by: user.id,
-      });
+    try {
+      // 1. Spremi obavijest u Supabase
+      const { error: spremanjeError } = await supabase
+        .from("obavijesti")
+        .insert({
+          naslov: cistiNaslov,
+          poruka: cistaPoruka,
+          link: cistiLink || null,
+          cilj,
+          skupina_id:
+            cilj === "skupina" ? skupinaId : null,
+          created_by: session.user.id,
+        });
 
-    if (error) {
-      setGreska("Obavijest nije moguće poslati: " + error.message);
+      if (spremanjeError) {
+        setGreska(
+          "Obavijest nije moguće spremiti: " +
+            spremanjeError.message
+        );
+        return;
+      }
+
+      // 2. Pošalji push preko našeg sigurnog serverskog API-ja
+      try {
+        const pushResponse = await fetch("/api/admin/push", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            naslov: cistiNaslov,
+            poruka: cistaPoruka,
+            link: cistiLink || null,
+            cilj,
+            skupina_id:
+              cilj === "skupina" ? skupinaId : null,
+          }),
+        });
+
+        const pushData: PushOdgovor =
+          await pushResponse.json();
+
+        if (!pushResponse.ok) {
+          setUpozorenje(
+            "Obavijest je spremljena u aplikaciju, ali push nije poslan. " +
+              (pushData.error ?? "")
+          );
+        } else if (pushData.poslano === false) {
+          setUpozorenje(
+            pushData.message ??
+              "Obavijest je spremljena, ali nema korisnika kojima se push može poslati."
+          );
+        } else {
+          const broj = pushData.brojKorisnika ?? 0;
+
+          setUspjeh(
+            `Obavijest je uspješno spremljena i push je poslan za ${broj} ${
+              broj === 1 ? "korisnika" : "korisnika"
+            }.`
+          );
+        }
+      } catch (pushError) {
+        console.error("Push greška:", pushError);
+
+        setUpozorenje(
+          "Obavijest je spremljena u aplikaciju, ali push trenutno nije bilo moguće poslati."
+        );
+      }
+
+      // 3. Očisti obrazac
+      setNaslov("");
+      setPoruka("");
+      setLink("");
+      setCilj("svi");
+      setSkupinaId("");
+
+      await ucitajPodatke();
+    } catch (error) {
+      console.error(error);
+
+      setGreska(
+        "Došlo je do neočekivane greške kod slanja obavijesti."
+      );
+    } finally {
       setSpremanje(false);
-      return;
     }
-
-    setNaslov("");
-    setPoruka("");
-    setLink("");
-    setCilj("svi");
-    setSkupinaId("");
-
-    setUspjeh("Obavijest je uspješno poslana.");
-
-    await ucitajPodatke();
-
-    setSpremanje(false);
   }
 
-  async function promijeniStatus(obavijest: Obavijest) {
+  async function promijeniStatus(
+    obavijest: Obavijest
+  ) {
+    setGreska("");
+    setUspjeh("");
+    setUpozorenje("");
+
     const { error } = await supabase
       .from("obavijesti")
       .update({
@@ -164,7 +243,9 @@ export default function ObavijestiPage() {
       .eq("id", obavijest.id);
 
     if (error) {
-      setGreska("Status obavijesti nije moguće promijeniti.");
+      setGreska(
+        "Status obavijesti nije moguće promijeniti."
+      );
       return;
     }
 
@@ -224,7 +305,8 @@ export default function ObavijestiPage() {
         </h1>
 
         <p className="mt-2 text-neutral-500">
-          Poruke za polaznike, profesore i obrazovne skupine
+          Poruke i push obavijesti za polaznike,
+          profesore i obrazovne skupine
         </p>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[420px_1fr]">
@@ -244,7 +326,9 @@ export default function ObavijestiPage() {
 
                 <input
                   value={naslov}
-                  onChange={(e) => setNaslov(e.target.value)}
+                  onChange={(e) =>
+                    setNaslov(e.target.value)
+                  }
                   className="w-full rounded-xl border border-neutral-300 px-4 py-3"
                   placeholder="npr. Promjena termina predavanja"
                 />
@@ -257,7 +341,9 @@ export default function ObavijestiPage() {
 
                 <textarea
                   value={poruka}
-                  onChange={(e) => setPoruka(e.target.value)}
+                  onChange={(e) =>
+                    setPoruka(e.target.value)
+                  }
                   rows={5}
                   className="w-full rounded-xl border border-neutral-300 px-4 py-3"
                   placeholder="Upišite obavijest..."
@@ -274,7 +360,9 @@ export default function ObavijestiPage() {
                   onChange={(e) => {
                     setCilj(e.target.value);
 
-                    if (e.target.value !== "skupina") {
+                    if (
+                      e.target.value !== "skupina"
+                    ) {
                       setSkupinaId("");
                     }
                   }}
@@ -335,20 +423,47 @@ export default function ObavijestiPage() {
                 <input
                   type="url"
                   value={link}
-                  onChange={(e) => setLink(e.target.value)}
+                  onChange={(e) =>
+                    setLink(e.target.value)
+                  }
                   className="w-full rounded-xl border border-neutral-300 px-4 py-3"
                   placeholder="https://..."
                 />
 
                 <p className="mt-2 text-xs text-neutral-500">
-                  Npr. Google Forms anketa, Teams sastanak ili
-                  dokument.
+                  Npr. Google Forms anketa, Teams
+                  sastanak ili dokument.
                 </p>
+              </div>
+
+              <div className="rounded-xl bg-neutral-50 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-xl">🔔</span>
+
+                  <div>
+                    <p className="text-sm font-semibold text-neutral-800">
+                      Push obavijest
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-neutral-500">
+                      Klikom na Pošalji obavijest poruka
+                      će se spremiti u Maestro aplikaciju
+                      i poslati kao push korisnicima koji
+                      su uključili obavijesti.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {greska && (
                 <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
                   {greska}
+                </div>
+              )}
+
+              {upozorenje && (
+                <div className="rounded-xl bg-yellow-50 p-3 text-sm text-yellow-800">
+                  {upozorenje}
                 </div>
               )}
 
@@ -360,7 +475,7 @@ export default function ObavijestiPage() {
 
               <button
                 disabled={spremanje}
-                className="w-full rounded-xl bg-red-600 px-5 py-3 font-bold text-white disabled:opacity-50"
+                className="w-full rounded-xl bg-red-600 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {spremanje
                   ? "Slanje..."
