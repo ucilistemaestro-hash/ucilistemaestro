@@ -2,8 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import {
+  ArrowRight,
+  Bell,
+  CalendarDays,
+  Clock3,
+  MapPin,
+  Users,
+  UserRound,
+} from "lucide-react";
+
 import { supabase } from "@/lib/supabase";
 import PushObavijesti from "@/components/PushObavijesti";
+import ProfesorNav from "@/components/ProfesorNav";
 
 type Predavanje = {
   predavanje_id: string;
@@ -31,10 +43,14 @@ export default function ProfesorPage() {
   const router = useRouter();
 
   const [ime, setIme] = useState("");
-  const [raspored, setRaspored] = useState<Predavanje[]>([]);
-  const [obavijesti, setObavijesti] = useState<Obavijest[]>([]);
-  const [ucitavanje, setUcitavanje] = useState(true);
-  const [greska, setGreska] = useState("");
+  const [raspored, setRaspored] =
+    useState<Predavanje[]>([]);
+  const [obavijesti, setObavijesti] =
+    useState<Obavijest[]>([]);
+  const [ucitavanje, setUcitavanje] =
+    useState(true);
+  const [greska, setGreska] =
+    useState("");
 
   useEffect(() => {
     ucitajProfesora();
@@ -53,7 +69,10 @@ export default function ProfesorPage() {
       return;
     }
 
-    const { data: profil, error: profilError } = await supabase
+    const {
+      data: profil,
+      error: profilError,
+    } = await supabase
       .from("profili")
       .select("ime_prezime, uloga, aktivan")
       .eq("id", user.id)
@@ -69,82 +88,102 @@ export default function ProfesorPage() {
       return;
     }
 
-    setIme(profil.ime_prezime || "Profesor");
+    setIme(
+      profil.ime_prezime ||
+        "Profesor"
+    );
 
-    const [rasporedRezultat, obavijestiRezultat] =
-      await Promise.all([
-        supabase.rpc("moj_profesorski_raspored"),
-        supabase.rpc("moje_obavijesti"),
-      ]);
+    const [
+      rasporedRezultat,
+      obavijestiRezultat,
+    ] = await Promise.all([
+      supabase.rpc(
+        "moj_profesorski_raspored"
+      ),
+      supabase.rpc(
+        "moje_obavijesti"
+      ),
+    ]);
 
     if (rasporedRezultat.error) {
       setGreska(
-        "Nije moguće učitati raspored: " +
-          rasporedRezultat.error.message
+        "Nije moguće učitati raspored."
       );
     } else {
-      setRaspored(rasporedRezultat.data ?? []);
+      setRaspored(
+        rasporedRezultat.data ?? []
+      );
     }
 
     if (obavijestiRezultat.error) {
       setGreska(
-        "Nije moguće učitati obavijesti: " +
-          obavijestiRezultat.error.message
+        "Nije moguće učitati obavijesti."
       );
     } else {
-      setObavijesti(obavijestiRezultat.data ?? []);
+      setObavijesti(
+        obavijestiRezultat.data ?? []
+      );
     }
 
     setUcitavanje(false);
   }
 
-  async function odjava() {
-    await supabase.auth.signOut();
-    router.replace("/login");
+  function krajPredavanja(
+    predavanje: Predavanje
+  ) {
+    return new Date(
+      `${predavanje.datum}T${predavanje.vrijeme_zavrsetka}`
+    );
   }
 
-  function formatDatuma(datum: string) {
+  function formatDatum(
+    datum: string
+  ) {
     return new Date(
       datum + "T12:00:00"
-    ).toLocaleDateString("hr-HR", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
+    ).toLocaleDateString(
+      "hr-HR",
+      {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }
+    );
   }
 
-  function formatDatumVrijeme(datum: string) {
-    return new Date(datum).toLocaleString("hr-HR", {
-      day: "numeric",
-      month: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  function datumVrijemePredavanja(predavanje: Predavanje) {
+  function formatDatumObjave(
+    datum: string
+  ) {
     return new Date(
-      `${predavanje.datum}T${predavanje.vrijeme_pocetka}`
+      datum
+    ).toLocaleDateString(
+      "hr-HR",
+      {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }
     );
   }
 
   const sada = new Date();
 
-  const buducaPredavanja = raspored.filter(
-    (predavanje) =>
-      datumVrijemePredavanja(predavanje) >= sada
-  );
+  const buducaPredavanja =
+    raspored.filter(
+      (predavanje) =>
+        krajPredavanja(predavanje) >= sada
+    );
 
-  const sljedece = buducaPredavanja[0];
+  const sljedece =
+    buducaPredavanja[0];
 
-  const najnovijeObavijesti = obavijesti.slice(0, 3);
+  const najnovijeObavijesti =
+    obavijesti.slice(0, 2);
 
   if (ucitavanje) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-neutral-100 px-6">
-        <p className="text-lg font-medium text-neutral-600">
+      <main className="flex min-h-[100dvh] w-full items-center justify-center bg-[#f4f6f8] px-4">
+        <p className="text-[18px] font-semibold text-[#66717d]">
           Učitavanje...
         </p>
       </main>
@@ -152,273 +191,321 @@ export default function ProfesorPage() {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-100 pb-28">
-      <header className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto flex max-w-xl items-center justify-between px-5 py-5">
+    <main className="min-h-[100dvh] w-full overflow-x-hidden bg-[#f4f6f8] pb-28">
+      <header className="w-full border-b border-[#e2e7ec] bg-white">
+        <div className="flex w-full items-center justify-between px-4 py-5 md:mx-auto md:max-w-[640px] md:px-5">
           <div>
-            <div className="text-3xl font-black text-red-600">
+            <div className="text-[28px] font-black tracking-[-0.02em] text-[#c9252d]">
               MAESTRO
             </div>
 
-            <div className="mt-1 text-sm text-neutral-500">
+            <p className="mt-0.5 text-[14px] font-medium text-[#66717d]">
               Učilište za obrazovanje odraslih
-            </div>
+            </p>
           </div>
 
           <button
-            onClick={odjava}
-            className="min-h-12 rounded-xl border border-neutral-300 px-4 text-base font-semibold text-neutral-600"
+            type="button"
+            onClick={() =>
+              router.push(
+                "/profesor/profil"
+              )
+            }
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#eef2f5] text-[#17324d]"
           >
-            Odjava
+            <UserRound size={23} />
           </button>
         </div>
       </header>
 
-      <div className="mx-auto max-w-xl px-5 py-7">
-        <p className="text-base text-neutral-500">
-          Dobro došli,
-        </p>
+      <div className="w-full px-4 py-7 md:mx-auto md:max-w-[640px] md:px-5">
+        <section>
+          <p className="text-[17px] font-medium text-[#66717d]">
+            Dobro došli,
+          </p>
 
-        <h1 className="mt-1 text-3xl font-bold leading-tight text-neutral-900">
-          {ime} 👋
-        </h1>
+          <h1 className="mt-1 text-[34px] font-extrabold leading-[1.12] tracking-[-0.025em] text-[#17202a]">
+            {ime}
+          </h1>
 
-        <p className="mt-2 text-lg text-neutral-600">
-          Vaš profesorski pregled
-        </p>
+          <p className="mt-2 text-[18px] leading-7 text-[#66717d]">
+            Pregled vaše nastave i važnih
+            informacija.
+          </p>
+        </section>
 
         <PushObavijesti />
 
         {greska && (
-          <div className="mt-6 rounded-2xl bg-red-50 p-5 text-base leading-7 text-red-700">
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-[17px] leading-7 text-red-700">
             {greska}
           </div>
         )}
 
         {sljedece ? (
-          <section className="mt-7 rounded-3xl border-l-4 border-red-600 bg-white p-6 shadow-sm">
-            <p className="text-sm font-bold uppercase tracking-wider text-red-600">
-              Sljedeće predavanje
-            </p>
+          <section className="mt-7 w-full overflow-hidden rounded-[24px] border border-[#dfe5ea] bg-white shadow-[0_8px_24px_rgba(23,50,77,0.06)]">
+            <div className="flex items-center justify-between bg-[#17324d] px-5 py-4">
+              <div>
+                <p className="text-[14px] font-bold uppercase tracking-[0.09em] text-white/70">
+                  Sljedeće predavanje
+                </p>
 
-            <h2 className="mt-3 text-2xl font-bold leading-tight text-neutral-900">
-              {sljedece.naziv}
-            </h2>
+                <p className="mt-1 text-[16px] font-semibold capitalize text-white">
+                  {formatDatum(
+                    sljedece.datum
+                  )}
+                </p>
+              </div>
 
-            <div className="mt-3 rounded-xl bg-red-50 px-4 py-3">
-              <p className="text-lg font-bold text-red-700">
-                {sljedece.skupina_naziv}
-              </p>
+              <CalendarDays
+                size={26}
+                className="text-white/80"
+              />
             </div>
 
-            <div className="mt-5 space-y-3 text-lg leading-7 text-neutral-700">
-              <p>
-                📅 {formatDatuma(sljedece.datum)}
+            <div className="p-5">
+              <h2 className="text-[27px] font-extrabold leading-tight tracking-[-0.02em] text-[#17202a]">
+                {sljedece.naziv}
+              </h2>
+
+              <p className="mt-2 text-[17px] font-bold text-[#c9252d]">
+                {sljedece.skupina_naziv}
               </p>
 
-              <p>
-                🕒{" "}
-                {sljedece.vrijeme_pocetka.slice(0, 5)}
-                {" – "}
-                {sljedece.vrijeme_zavrsetka.slice(0, 5)}
-              </p>
+              <div className="mt-6 space-y-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+                    <Clock3 size={21} />
+                  </div>
 
-              <p>
-                📍{" "}
-                {sljedece.ucionica_naziv ??
-                  "Online / bez učionice"}
-              </p>
+                  <div>
+                    <p className="text-[13px] font-semibold uppercase tracking-wide text-[#8b949e]">
+                      Vrijeme
+                    </p>
 
-              {sljedece.lokacija && (
-                <p className="pl-7 text-base text-neutral-500">
-                  {sljedece.lokacija}
-                </p>
-              )}
+                    <p className="mt-0.5 text-[18px] font-semibold text-[#28333e]">
+                      {sljedece.vrijeme_pocetka.slice(
+                        0,
+                        5
+                      )}
+                      {" – "}
+                      {sljedece.vrijeme_zavrsetka.slice(
+                        0,
+                        5
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+                    <Users size={21} />
+                  </div>
+
+                  <div>
+                    <p className="text-[13px] font-semibold uppercase tracking-wide text-[#8b949e]">
+                      Obrazovna skupina
+                    </p>
+
+                    <p className="mt-0.5 text-[18px] font-semibold text-[#28333e]">
+                      {sljedece.skupina_naziv}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+                    <MapPin size={21} />
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold uppercase tracking-wide text-[#8b949e]">
+                      Lokacija
+                    </p>
+
+                    <p className="mt-0.5 text-[18px] font-semibold text-[#28333e]">
+                      {sljedece.ucionica_naziv ??
+                        "Online / bez učionice"}
+                    </p>
+
+                    {sljedece.lokacija && (
+                      <p className="mt-1 text-[16px] leading-6 text-[#66717d]">
+                        {sljedece.lokacija}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
 
               {sljedece.napomena && (
-                <div className="mt-4 rounded-xl bg-neutral-100 p-4 text-base leading-6 text-neutral-700">
-                  <span className="font-bold">
-                    Napomena:
-                  </span>{" "}
-                  {sljedece.napomena}
+                <div className="mt-5 rounded-xl bg-[#f6f7f9] p-4">
+                  <p className="text-[13px] font-bold uppercase tracking-wide text-[#8b949e]">
+                    Napomena
+                  </p>
+
+                  <p className="mt-1 text-[17px] leading-7 text-[#4f5b66]">
+                    {sljedece.napomena}
+                  </p>
                 </div>
               )}
             </div>
           </section>
         ) : (
-          <section className="mt-7 rounded-3xl bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-bold text-neutral-900">
+          <section className="mt-7 w-full rounded-[24px] border border-[#dfe5ea] bg-white p-6">
+            <h2 className="text-[22px] font-bold text-[#17202a]">
               Nema nadolazećih predavanja
             </h2>
 
-            <p className="mt-2 text-base leading-7 text-neutral-500">
-              Trenutačno nemate planirane termine nastave.
+            <p className="mt-2 text-[17px] leading-7 text-[#66717d]">
+              Novi termini pojavit će se ovdje
+              kada budu dodijeljeni.
             </p>
           </section>
         )}
 
-        <section className="mt-9">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-2xl font-bold text-neutral-900">
-              Obavijesti
-            </h2>
+        <div className="mt-4 grid w-full grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                "/profesor/raspored"
+              )
+            }
+            className="min-w-0 rounded-[20px] border border-[#dfe5ea] bg-white p-5 text-left shadow-[0_5px_18px_rgba(23,50,77,0.04)]"
+          >
+            <CalendarDays
+              size={27}
+              className="text-[#17324d]"
+            />
 
-            <span className="rounded-full bg-red-100 px-4 py-2 text-sm font-bold text-red-700">
+            <div className="mt-5 text-[32px] font-extrabold leading-none text-[#17202a]">
+              {buducaPredavanja.length}
+            </div>
+
+            <p className="mt-2 text-[15px] font-semibold leading-5 text-[#66717d]">
+              Nadolazećih termina
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                "/profesor/obavijesti"
+              )
+            }
+            className="min-w-0 rounded-[20px] border border-[#dfe5ea] bg-white p-5 text-left shadow-[0_5px_18px_rgba(23,50,77,0.04)]"
+          >
+            <Bell
+              size={27}
+              className="text-[#17324d]"
+            />
+
+            <div className="mt-5 text-[32px] font-extrabold leading-none text-[#17202a]">
               {obavijesti.length}
-            </span>
+            </div>
+
+            <p className="mt-2 text-[15px] font-semibold leading-5 text-[#66717d]">
+              Obavijesti
+            </p>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            router.push(
+              "/profesor/raspored"
+            )
+          }
+          className="mt-4 flex min-h-[62px] w-full items-center justify-between rounded-[18px] bg-[#17324d] px-5 text-left text-white"
+        >
+          <div>
+            <p className="text-[17px] font-bold">
+              Pogledaj cijeli raspored
+            </p>
+
+            <p className="mt-0.5 text-[14px] text-white/70">
+              Svi vaši termini nastave
+            </p>
+          </div>
+
+          <ArrowRight size={23} />
+        </button>
+
+        <section className="mt-9 w-full">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[13px] font-bold uppercase tracking-[0.08em] text-[#c9252d]">
+                Aktualno
+              </p>
+
+              <h2 className="mt-1 text-[25px] font-extrabold tracking-[-0.02em] text-[#17202a]">
+                Obavijesti
+              </h2>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  "/profesor/obavijesti"
+                )
+              }
+              className="flex min-h-11 shrink-0 items-center gap-1 text-[16px] font-bold text-[#17324d]"
+            >
+              Prikaži sve
+              <ArrowRight size={19} />
+            </button>
           </div>
 
           {najnovijeObavijesti.length === 0 ? (
-            <div className="mt-4 rounded-2xl bg-white p-5 text-base leading-7 text-neutral-500 shadow-sm">
+            <div className="mt-4 w-full rounded-[20px] border border-[#dfe5ea] bg-white p-5 text-[17px] text-[#66717d]">
               Trenutačno nema novih obavijesti.
             </div>
           ) : (
-            <div className="mt-4 space-y-4">
-              {najnovijeObavijesti.map((obavijest) => (
-                <article
-                  key={obavijest.obavijest_id}
-                  className="rounded-2xl bg-white p-5 shadow-sm"
-                >
-                  <div className="flex gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-xl">
-                      🔔
+            <div className="mt-4 w-full overflow-hidden rounded-[22px] border border-[#dfe5ea] bg-white">
+              {najnovijeObavijesti.map(
+                (obavijest, index) => (
+                  <article
+                    key={
+                      obavijest.obavijest_id
+                    }
+                    className={`flex gap-4 p-5 ${
+                      index !==
+                      najnovijeObavijesti.length - 1
+                        ? "border-b border-[#e8ecef]"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+                      <Bell size={21} />
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-xl font-bold leading-tight text-neutral-900">
+                      <h3 className="text-[19px] font-bold leading-6 text-[#17202a]">
                         {obavijest.naslov}
                       </h3>
 
-                      <p className="mt-3 text-base leading-7 text-neutral-700">
+                      <p className="mt-1.5 text-[17px] leading-6 text-[#5e6974]">
                         {obavijest.poruka}
                       </p>
 
-                      {obavijest.link && (
-                        <a
-                          href={obavijest.link}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-4 inline-flex min-h-12 items-center rounded-xl bg-red-600 px-5 text-base font-bold text-white"
-                        >
-                          Otvori poveznicu
-                        </a>
-                      )}
-
-                      <p className="mt-4 text-sm text-neutral-400">
-                        {formatDatumVrijeme(
+                      <p className="mt-3 text-[14px] font-medium text-[#929ba4]">
+                        {formatDatumObjave(
                           obavijest.datum_objave
                         )}
                       </p>
                     </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="mt-9">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-2xl font-bold text-neutral-900">
-              Moj raspored
-            </h2>
-
-            <span className="text-base font-medium text-neutral-500">
-              {buducaPredavanja.length} termina
-            </span>
-          </div>
-
-          {buducaPredavanja.length === 0 ? (
-            <div className="mt-4 rounded-2xl bg-white p-5 text-base text-neutral-500 shadow-sm">
-              Nema nadolazećih termina.
-            </div>
-          ) : (
-            <div className="mt-4 space-y-4">
-              {buducaPredavanja.map((predavanje) => (
-                <article
-                  key={predavanje.predavanje_id}
-                  className="rounded-2xl bg-white p-5 shadow-sm"
-                >
-                  <p className="text-sm font-bold uppercase tracking-wide text-red-600">
-                    {formatDatuma(predavanje.datum)}
-                  </p>
-
-                  <h3 className="mt-2 text-xl font-bold leading-tight text-neutral-900">
-                    {predavanje.naziv}
-                  </h3>
-
-                  <div className="mt-3 rounded-xl bg-neutral-100 px-4 py-3">
-                    <p className="text-base font-bold text-neutral-800">
-                      👥 {predavanje.skupina_naziv}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 space-y-2 text-base leading-7 text-neutral-700">
-                    <p>
-                      🕒{" "}
-                      {predavanje.vrijeme_pocetka.slice(
-                        0,
-                        5
-                      )}
-                      {" – "}
-                      {predavanje.vrijeme_zavrsetka.slice(
-                        0,
-                        5
-                      )}
-                    </p>
-
-                    <p>
-                      📍{" "}
-                      {predavanje.ucionica_naziv ??
-                        "Online / bez učionice"}
-                    </p>
-
-                    {predavanje.lokacija && (
-                      <p className="pl-7 text-neutral-500">
-                        {predavanje.lokacija}
-                      </p>
-                    )}
-                  </div>
-
-                  {predavanje.napomena && (
-                    <div className="mt-4 rounded-xl bg-yellow-50 p-4 text-base leading-6 text-yellow-900">
-                      <span className="font-bold">
-                        Napomena:
-                      </span>{" "}
-                      {predavanje.napomena}
-                    </div>
-                  )}
-                </article>
-              ))}
+                  </article>
+                )
+              )}
             </div>
           )}
         </section>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 border-t border-neutral-200 bg-white">
-        <div className="mx-auto grid max-w-xl grid-cols-3">
-          <button className="min-h-20 py-3 text-red-600">
-            <div className="text-xl">🏠</div>
-            <div className="mt-1 text-sm font-bold">
-              Početna
-            </div>
-          </button>
-
-          <button className="min-h-20 py-3 text-neutral-600">
-            <div className="text-xl">📅</div>
-            <div className="mt-1 text-sm font-semibold">
-              Raspored
-            </div>
-          </button>
-
-          <button className="min-h-20 py-3 text-neutral-600">
-            <div className="text-xl">🔔</div>
-            <div className="mt-1 text-sm font-semibold">
-              Obavijesti
-            </div>
-          </button>
-        </div>
-      </nav>
+      <ProfesorNav />
     </main>
   );
 }
