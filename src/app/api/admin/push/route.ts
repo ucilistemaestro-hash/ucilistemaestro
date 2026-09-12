@@ -1,70 +1,153 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-type Cilj = "svi" | "polaznici" | "profesori" | "skupina";
+type Cilj =
+  | "svi"
+  | "polaznici"
+  | "profesori"
+  | "skupina";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
     const supabasePublishableKey =
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
-    const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
-    const oneSignalApiKey = process.env.ONESIGNAL_API_KEY;
+    const supabaseSecretKey =
+      process.env.SUPABASE_SECRET_KEY;
+
+    const oneSignalAppId =
+      process.env.ONESIGNAL_APP_ID;
+
+    const oneSignalApiKey =
+      process.env.ONESIGNAL_API_KEY;
+
+    // Provjera svih potrebnih serverskih postavki
+    const nedostaje: string[] = [];
+
+    if (!supabaseUrl) {
+      nedostaje.push(
+        "NEXT_PUBLIC_SUPABASE_URL"
+      );
+    }
+
+    if (!supabasePublishableKey) {
+      nedostaje.push(
+        "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+      );
+    }
+
+    if (!supabaseSecretKey) {
+      nedostaje.push(
+        "SUPABASE_SECRET_KEY"
+      );
+    }
+
+    if (!oneSignalAppId) {
+      nedostaje.push(
+        "ONESIGNAL_APP_ID"
+      );
+    }
+
+    if (!oneSignalApiKey) {
+      nedostaje.push(
+        "ONESIGNAL_API_KEY"
+      );
+    }
+
+    if (nedostaje.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Nedostaju serverske postavke: " +
+            nedostaje.join(", "),
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    /*
+      Nakon gornje provjere znamo da sve vrijednosti postoje.
+      Ove varijable TypeScript sada tretira kao obične stringove.
+    */
+    const supabaseUrlVrijednost =
+      supabaseUrl as string;
+
+    const supabasePublishableKeyVrijednost =
+      supabasePublishableKey as string;
+
+    const supabaseSecretKeyVrijednost =
+      supabaseSecretKey as string;
+
+    const oneSignalAppIdVrijednost =
+      oneSignalAppId as string;
+
+    const oneSignalApiKeyVrijednost =
+      oneSignalApiKey as string;
+
+    // Provjera prijave administratora
+    const authorization =
+      request.headers.get("authorization");
 
     if (
-      !supabaseUrl ||
-      !supabasePublishableKey ||
-      !supabaseSecretKey ||
-      !oneSignalAppId ||
-      !oneSignalApiKey
+      !authorization ||
+      !authorization.startsWith("Bearer ")
     ) {
       return NextResponse.json(
-        { error: "Nedostaju serverske postavke." },
-        { status: 500 }
+        {
+          error: "Niste prijavljeni.",
+        },
+        {
+          status: 401,
+        }
       );
     }
 
-    const authorization = request.headers.get("authorization");
-
-    if (!authorization?.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { error: "Niste prijavljeni." },
-        { status: 401 }
-      );
-    }
-
-    const accessToken = authorization.replace("Bearer ", "");
+    const accessToken =
+      authorization.replace("Bearer ", "");
 
     const supabaseAuth = createClient(
-      supabaseUrl,
-      supabasePublishableKey
+      supabaseUrlVrijednost,
+      supabasePublishableKeyVrijednost
     );
 
     const {
       data: { user },
       error: userError,
-    } = await supabaseAuth.auth.getUser(accessToken);
+    } = await supabaseAuth.auth.getUser(
+      accessToken
+    );
 
     if (userError || !user) {
       return NextResponse.json(
-        { error: "Neispravna prijava." },
-        { status: 401 }
+        {
+          error:
+            "Neispravna ili istekla prijava.",
+        },
+        {
+          status: 401,
+        }
       );
     }
 
+    // Serverski Supabase klijent
     const supabaseAdmin = createClient(
-      supabaseUrl,
-      supabaseSecretKey
+      supabaseUrlVrijednost,
+      supabaseSecretKeyVrijednost
     );
 
-    const { data: adminProfil, error: adminError } =
-      await supabaseAdmin
-        .from("profili")
-        .select("id, uloga, aktivan")
-        .eq("id", user.id)
-        .single();
+    const {
+      data: adminProfil,
+      error: adminError,
+    } = await supabaseAdmin
+      .from("profili")
+      .select("id, uloga, aktivan")
+      .eq("id", user.id)
+      .single();
 
     if (
       adminError ||
@@ -73,64 +156,116 @@ export async function POST(request: NextRequest) {
       adminProfil.aktivan !== true
     ) {
       return NextResponse.json(
-        { error: "Nemate administratorske ovlasti." },
-        { status: 403 }
+        {
+          error:
+            "Nemate administratorske ovlasti.",
+        },
+        {
+          status: 403,
+        }
       );
     }
 
+    // Dohvati podatke iz zahtjeva
     const body = await request.json();
 
-    const naslov = String(body.naslov ?? "").trim();
-    const poruka = String(body.poruka ?? "").trim();
-    const link = String(body.link ?? "").trim();
+    const naslov = String(
+      body.naslov ?? ""
+    ).trim();
+
+    const poruka = String(
+      body.poruka ?? ""
+    ).trim();
+
+    const link = String(
+      body.link ?? ""
+    ).trim();
+
     const cilj = body.cilj as Cilj;
+
     const skupinaId = body.skupina_id
       ? String(body.skupina_id)
       : null;
 
+    // Validacija
     if (!naslov || !poruka) {
       return NextResponse.json(
-        { error: "Naslov i poruka su obavezni." },
-        { status: 400 }
+        {
+          error:
+            "Naslov i poruka su obavezni.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    const dozvoljeniCiljevi: Cilj[] = [
+      "svi",
+      "polaznici",
+      "profesori",
+      "skupina",
+    ];
+
+    if (!dozvoljeniCiljevi.includes(cilj)) {
+      return NextResponse.json(
+        {
+          error:
+            "Neispravan cilj obavijesti.",
+        },
+        {
+          status: 400,
+        }
       );
     }
 
     if (
-      !["svi", "polaznici", "profesori", "skupina"].includes(
-        cilj
-      )
+      cilj === "skupina" &&
+      !skupinaId
     ) {
       return NextResponse.json(
-        { error: "Neispravan cilj obavijesti." },
-        { status: 400 }
+        {
+          error:
+            "Nije odabrana obrazovna skupina.",
+        },
+        {
+          status: 400,
+        }
       );
     }
 
-    if (cilj === "skupina" && !skupinaId) {
-      return NextResponse.json(
-        { error: "Nije odabrana obrazovna skupina." },
-        { status: 400 }
-      );
-    }
-
+    // Popis Supabase korisničkih ID-eva
     let korisnikIds: string[] = [];
 
+    // Svi polaznici i profesori
     if (cilj === "svi") {
-      const { data, error } = await supabaseAdmin
+      const {
+        data,
+        error,
+      } = await supabaseAdmin
         .from("profili")
         .select("id")
         .eq("aktivan", true)
-        .in("uloga", ["polaznik", "profesor"]);
+        .in("uloga", [
+          "polaznik",
+          "profesor",
+        ]);
 
       if (error) {
         throw error;
       }
 
-      korisnikIds = (data ?? []).map((red) => red.id);
+      korisnikIds = (data ?? []).map(
+        (red) => red.id
+      );
     }
 
+    // Samo polaznici
     if (cilj === "polaznici") {
-      const { data, error } = await supabaseAdmin
+      const {
+        data,
+        error,
+      } = await supabaseAdmin
         .from("profili")
         .select("id")
         .eq("aktivan", true)
@@ -140,11 +275,17 @@ export async function POST(request: NextRequest) {
         throw error;
       }
 
-      korisnikIds = (data ?? []).map((red) => red.id);
+      korisnikIds = (data ?? []).map(
+        (red) => red.id
+      );
     }
 
+    // Samo profesori
     if (cilj === "profesori") {
-      const { data, error } = await supabaseAdmin
+      const {
+        data,
+        error,
+      } = await supabaseAdmin
         .from("profili")
         .select("id")
         .eq("aktivan", true)
@@ -154,108 +295,180 @@ export async function POST(request: NextRequest) {
         throw error;
       }
 
-      korisnikIds = (data ?? []).map((red) => red.id);
+      korisnikIds = (data ?? []).map(
+        (red) => red.id
+      );
     }
 
-    if (cilj === "skupina" && skupinaId) {
-      const { data: clanstva, error: clanstvaError } =
-        await supabaseAdmin
-          .from("clanstva_skupina")
-          .select("korisnik_id")
-          .eq("skupina_id", skupinaId)
-          .eq("status", "aktivan");
+    // Jedna obrazovna skupina
+    if (
+      cilj === "skupina" &&
+      skupinaId
+    ) {
+      const {
+        data: clanstva,
+        error: clanstvaError,
+      } = await supabaseAdmin
+        .from("clanstva_skupina")
+        .select("korisnik_id")
+        .eq("skupina_id", skupinaId)
+        .eq("status", "aktivan");
 
       if (clanstvaError) {
         throw clanstvaError;
       }
 
-      const clanIds = (clanstva ?? []).map(
+      const clanIds = (
+        clanstva ?? []
+      ).map(
         (red) => red.korisnik_id
       );
 
       if (clanIds.length > 0) {
-        const { data: profili, error: profiliError } =
-          await supabaseAdmin
-            .from("profili")
-            .select("id")
-            .in("id", clanIds)
-            .eq("aktivan", true);
+        const {
+          data: profili,
+          error: profiliError,
+        } = await supabaseAdmin
+          .from("profili")
+          .select("id")
+          .in("id", clanIds)
+          .eq("aktivan", true);
 
         if (profiliError) {
           throw profiliError;
         }
 
-        korisnikIds = (profili ?? []).map((red) => red.id);
+        korisnikIds = (
+          profili ?? []
+        ).map(
+          (red) => red.id
+        );
       }
     }
 
-    korisnikIds = [...new Set(korisnikIds)];
+    // Ukloni eventualne duplikate
+    korisnikIds = [
+      ...new Set(korisnikIds),
+    ];
 
     if (korisnikIds.length === 0) {
       return NextResponse.json({
         success: true,
         poslano: false,
         brojKorisnika: 0,
-        message: "Nema aktivnih korisnika za ovaj odabir.",
+        message:
+          "Nema aktivnih korisnika za ovaj odabir.",
       });
     }
 
+    // OneSignal zahtjev
     const oneSignalBody = {
-      app_id: oneSignalAppId,
+      app_id:
+        oneSignalAppIdVrijednost,
+
       target_channel: "push",
+
       include_aliases: {
         external_id: korisnikIds,
       },
+
       headings: {
         en: naslov,
       },
+
       contents: {
         en: poruka,
       },
+
       url:
         link ||
         "https://app.uciliste-maestro.hr",
     };
 
-    const oneSignalResponse = await fetch(
-      "https://api.onesignal.com/notifications",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Key ${oneSignalApiKey}`,
-        },
-        body: JSON.stringify(oneSignalBody),
-      }
-    );
+    const oneSignalResponse =
+      await fetch(
+        "https://api.onesignal.com/notifications",
+        {
+          method: "POST",
 
-    const oneSignalData = await oneSignalResponse.json();
+          headers: {
+            "Content-Type":
+              "application/json",
 
+            Authorization:
+              `Key ${oneSignalApiKeyVrijednost}`,
+          },
+
+          body: JSON.stringify(
+            oneSignalBody
+          ),
+        }
+      );
+
+    const oneSignalData =
+      await oneSignalResponse.json();
+
+    // OneSignal je odbio zahtjev
     if (!oneSignalResponse.ok) {
-      console.error("OneSignal greška:", oneSignalData);
+      console.error(
+        "OneSignal greška:",
+        oneSignalData
+      );
 
       return NextResponse.json(
         {
-          error: "OneSignal nije prihvatio push obavijest.",
+          error:
+            "OneSignal nije prihvatio push obavijest.",
+
+          details:
+            oneSignalData?.errors ??
+            null,
         },
-        { status: 502 }
+        {
+          status: 502,
+        }
+      );
+    }
+
+    // OneSignal ponekad vrati upozorenje
+    if (oneSignalData?.errors) {
+      console.error(
+        "OneSignal upozorenje:",
+        oneSignalData.errors
       );
     }
 
     return NextResponse.json({
       success: true,
-      poslano: Boolean(oneSignalData.id),
-      brojKorisnika: korisnikIds.length,
-      pushId: oneSignalData.id ?? null,
+
+      poslano: Boolean(
+        oneSignalData?.id
+      ),
+
+      brojKorisnika:
+        korisnikIds.length,
+
+      pushId:
+        oneSignalData?.id ?? null,
+
+      oneSignalErrors:
+        oneSignalData?.errors ??
+        null,
     });
   } catch (error) {
-    console.error("Push API greška:", error);
+    console.error(
+      "Push API greška:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error: "Došlo je do greške kod slanja push obavijesti.",
+        error:
+          "Došlo je do greške kod slanja push obavijesti.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
