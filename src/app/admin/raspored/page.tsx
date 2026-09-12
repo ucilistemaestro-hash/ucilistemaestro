@@ -22,6 +22,7 @@ import {
   RotateCcw,
   Save,
   Search,
+  Trash2,
   School,
   X,
 } from "lucide-react";
@@ -145,6 +146,11 @@ export default function RasporedPage() {
   const [
     promjenaStatusaId,
     setPromjenaStatusaId,
+  ] = useState<string | null>(null);
+
+  const [
+    brisanjeId,
+    setBrisanjeId,
   ] = useState<string | null>(null);
 
   useEffect(() => {
@@ -671,6 +677,129 @@ export default function RasporedPage() {
     setPromjenaStatusaId(
       null
     );
+  }
+
+  async function obrisiPredavanje(
+    predavanje: Predavanje
+  ) {
+    setGreska("");
+    setUspjeh("");
+
+    if (
+      predavanje.status ===
+      "odrzano"
+    ) {
+      setGreska(
+        "Održano predavanje nije moguće trajno obrisati."
+      );
+      return;
+    }
+
+    const potvrda =
+      window.confirm(
+        `Želite li trajno obrisati predavanje "${predavanje.naziv}" (${formatDatum(
+          predavanje.datum
+        )}, ${predavanje.vrijeme_pocetka.slice(
+          0,
+          5
+        )})?\n\nOva radnja se ne može poništiti.`
+      );
+
+    if (!potvrda) {
+      return;
+    }
+
+    setBrisanjeId(
+      predavanje.id
+    );
+
+    try {
+      const {
+        data: { session },
+      } =
+        await supabase.auth.getSession();
+
+      if (
+        !session?.access_token
+      ) {
+        setGreska(
+          "Brisanje nije moguće jer je prijava istekla. Prijavite se ponovno."
+        );
+        return;
+      }
+
+      const response =
+        await fetch(
+          "/api/admin/raspored/obrisi",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+              Authorization:
+                `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              predavanje_id:
+                predavanje.id,
+            }),
+          }
+        );
+
+      const tekst =
+        await response.text();
+
+      let rezultat: {
+        success?: boolean;
+        message?: string;
+        error?: string;
+      } = {};
+
+      if (tekst) {
+        try {
+          rezultat =
+            JSON.parse(tekst);
+        } catch {
+          rezultat = {
+            error:
+              "Poslužitelj je vratio neočekivani odgovor.",
+          };
+        }
+      }
+
+      if (!response.ok) {
+        setGreska(
+          rezultat.error ||
+            "Predavanje nije moguće obrisati."
+        );
+        return;
+      }
+
+      if (
+        uredjivanjeId ===
+        predavanje.id
+      ) {
+        ocistiObrazac();
+      }
+
+      await ucitajPodatke();
+
+      setUspjeh(
+        rezultat.message ||
+          "Predavanje je trajno obrisano."
+      );
+    } catch (error) {
+      console.error(
+        "Greška brisanja predavanja:",
+        error
+      );
+
+      setGreska(
+        "Dogodila se greška pri brisanju predavanja."
+      );
+    } finally {
+      setBrisanjeId(null);
+    }
   }
 
   function nazivSkupine(
@@ -1716,6 +1845,33 @@ export default function RasporedPage() {
                                   size={17}
                                 />
                                 Vrati na planirano
+                              </button>
+                            )}
+
+                            {predavanje.status !==
+                              "odrzano" && (
+                              <button
+                                type="button"
+                                disabled={
+                                  brisanjeId ===
+                                    predavanje.id ||
+                                  promjenaStatusaId ===
+                                    predavanje.id
+                                }
+                                onClick={() =>
+                                  obrisiPredavanje(
+                                    predavanje
+                                  )
+                                }
+                                className="flex min-h-[42px] items-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-bold text-[#c9252d] transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <Trash2
+                                  size={17}
+                                />
+                                {brisanjeId ===
+                                predavanje.id
+                                  ? "Brisanje..."
+                                  : "Obriši"}
                               </button>
                             )}
                           </div>
