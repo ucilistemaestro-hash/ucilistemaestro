@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Ban,
+  BellRing,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -62,6 +63,11 @@ type PrikazRasporeda =
   | "nadolazeca"
   | "sva";
 
+type VrstaPushObavijesti =
+  | "novo"
+  | "promjena"
+  | "otkazano";
+
 export default function RasporedPage() {
   const router = useRouter();
 
@@ -77,9 +83,6 @@ export default function RasporedPage() {
   const [predavanja, setPredavanja] =
     useState<Predavanje[]>([]);
 
-  /*
-    Obrazac
-  */
   const [naziv, setNaziv] =
     useState("");
 
@@ -109,9 +112,6 @@ export default function RasporedPage() {
     setUredjivanjeId,
   ] = useState<string | null>(null);
 
-  /*
-    Filtri
-  */
   const [pretraga, setPretraga] =
     useState("");
 
@@ -125,17 +125,11 @@ export default function RasporedPage() {
     setFilterProfesor,
   ] = useState("");
 
-  const [
-    prikaz,
-    setPrikaz,
-  ] =
+  const [prikaz, setPrikaz] =
     useState<PrikazRasporeda>(
       "nadolazeca"
     );
 
-  /*
-    Statusi stranice
-  */
   const [greska, setGreska] =
     useState("");
 
@@ -201,7 +195,9 @@ export default function RasporedPage() {
       predavanjaRez,
     ] = await Promise.all([
       supabase
-        .from("obrazovne_skupine")
+        .from(
+          "obrazovne_skupine"
+        )
         .select(
           "id, naziv, status"
         )
@@ -212,7 +208,10 @@ export default function RasporedPage() {
         .select(
           "id, ime_prezime, aktivan"
         )
-        .eq("uloga", "profesor")
+        .eq(
+          "uloga",
+          "profesor"
+        )
         .order("ime_prezime"),
 
       supabase
@@ -227,12 +226,18 @@ export default function RasporedPage() {
         .select(
           "id, skupina_id, profesor_id, ucionica_id, naziv, datum, vrijeme_pocetka, vrijeme_zavrsetka, napomena, status"
         )
-        .order("datum", {
-          ascending: true,
-        })
-        .order("vrijeme_pocetka", {
-          ascending: true,
-        }),
+        .order(
+          "datum",
+          {
+            ascending: true,
+          }
+        )
+        .order(
+          "vrijeme_pocetka",
+          {
+            ascending: true,
+          }
+        ),
     ]);
 
     const prvaGreska =
@@ -264,10 +269,72 @@ export default function RasporedPage() {
     );
 
     setPredavanja(
-      predavanjaRez.data ?? []
+      predavanjaRez.data ??
+        []
     );
 
     setUcitavanje(false);
+  }
+
+  async function posaljiPushRasporeda(
+    predavanjeId: string,
+    vrsta: VrstaPushObavijesti
+  ): Promise<string | null> {
+    try {
+      const {
+        data: { session },
+      } =
+        await supabase.auth.getSession();
+
+      if (
+        !session?.access_token
+      ) {
+        return "Raspored je spremljen, ali push obavijest nije poslana jer je prijava istekla.";
+      }
+
+      const response =
+        await fetch(
+          "/api/admin/raspored/push",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+
+              Authorization:
+                `Bearer ${session.access_token}`,
+            },
+
+            body:
+              JSON.stringify({
+                predavanje_id:
+                  predavanjeId,
+
+                vrsta,
+              }),
+          }
+        );
+
+      const rezultat =
+        await response.json();
+
+      if (!response.ok) {
+        return (
+          rezultat.error ||
+          "Raspored je spremljen, ali push obavijest nije poslana."
+        );
+      }
+
+      return null;
+    } catch (error) {
+      console.error(
+        "Push obavijest rasporeda:",
+        error
+      );
+
+      return "Raspored je spremljen, ali push obavijest nije poslana.";
+    }
   }
 
   function ocistiObrazac() {
@@ -304,7 +371,9 @@ export default function RasporedPage() {
       return;
     }
 
-    if (zavrsetak <= pocetak) {
+    if (
+      zavrsetak <= pocetak
+    ) {
       setGreska(
         "Vrijeme završetka mora biti nakon početka."
       );
@@ -316,61 +385,115 @@ export default function RasporedPage() {
     const podaci = {
       naziv: naziv.trim(),
       skupina_id: skupinaId,
-      profesor_id: profesorId,
+      profesor_id:
+        profesorId,
       ucionica_id:
         ucionicaId || null,
       datum,
-      vrijeme_pocetka: pocetak,
-      vrijeme_zavrsetka: zavrsetak,
+      vrijeme_pocetka:
+        pocetak,
+      vrijeme_zavrsetka:
+        zavrsetak,
       napomena:
-        napomena.trim() || null,
+        napomena.trim() ||
+        null,
     };
 
-    let error;
+    const bioUredjivanje =
+      Boolean(uredjivanjeId);
+
+    let spremljenoId:
+      | string
+      | null =
+      uredjivanjeId;
+
+    let greskaSpremanja:
+      | string
+      | null =
+      null;
 
     if (uredjivanjeId) {
-      const rezultat =
-        await supabase
-          .from("predavanja")
-          .update(podaci)
-          .eq(
-            "id",
-            uredjivanjeId
-          );
+      const {
+        error,
+      } = await supabase
+        .from("predavanja")
+        .update(podaci)
+        .eq(
+          "id",
+          uredjivanjeId
+        );
 
-      error = rezultat.error;
+      if (error) {
+        greskaSpremanja =
+          error.message;
+      }
     } else {
-      const rezultat =
-        await supabase
-          .from("predavanja")
-          .insert({
-            ...podaci,
-            status:
-              "planirano",
-          });
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("predavanja")
+        .insert({
+          ...podaci,
+          status:
+            "planirano",
+        })
+        .select("id")
+        .single();
 
-      error = rezultat.error;
+      if (error) {
+        greskaSpremanja =
+          error.message;
+      } else {
+        spremljenoId =
+          data.id;
+      }
     }
 
-    if (error) {
+    if (
+      greskaSpremanja
+    ) {
       setGreska(
         "Termin nije moguće spremiti: " +
-          error.message
+          greskaSpremanja
       );
 
       setSpremanje(false);
       return;
     }
 
-    setUspjeh(
-      uredjivanjeId
-        ? "Promjene termina su uspješno spremljene."
-        : "Predavanje je uspješno dodano."
-    );
+    let pushUpozorenje:
+      | string
+      | null =
+      null;
+
+    if (spremljenoId) {
+      pushUpozorenje =
+        await posaljiPushRasporeda(
+          spremljenoId,
+          bioUredjivanje
+            ? "promjena"
+            : "novo"
+        );
+    }
 
     ocistiObrazac();
 
     await ucitajPodatke();
+
+    setUspjeh(
+      bioUredjivanje
+        ? "Promjene termina su uspješno spremljene."
+        : "Predavanje je uspješno dodano."
+    );
+
+    if (
+      pushUpozorenje
+    ) {
+      setGreska(
+        pushUpozorenje
+      );
+    }
 
     setSpremanje(false);
   }
@@ -421,7 +544,8 @@ export default function RasporedPage() {
     );
 
     setNapomena(
-      predavanje.napomena ?? ""
+      predavanje.napomena ??
+        ""
     );
 
     window.scrollTo({
@@ -461,16 +585,18 @@ export default function RasporedPage() {
       predavanje.id
     );
 
-    const { error } =
-      await supabase
-        .from("predavanja")
-        .update({
-          status: noviStatus,
-        })
-        .eq(
-          "id",
-          predavanje.id
-        );
+    const {
+      error,
+    } = await supabase
+      .from("predavanja")
+      .update({
+        status:
+          noviStatus,
+      })
+      .eq(
+        "id",
+        predavanje.id
+      );
 
     if (error) {
       setGreska(
@@ -485,16 +611,62 @@ export default function RasporedPage() {
       return;
     }
 
-    setUspjeh(
-      noviStatus === "otkazano"
-        ? "Termin je otkazan."
-        : noviStatus ===
-            "odrzano"
-          ? "Termin je označen kao održan."
-          : "Termin je ponovno postavljen kao planiran."
-    );
+    let pushUpozorenje:
+      | string
+      | null =
+      null;
+
+    if (
+      noviStatus ===
+      "otkazano"
+    ) {
+      pushUpozorenje =
+        await posaljiPushRasporeda(
+          predavanje.id,
+          "otkazano"
+        );
+    }
+
+    if (
+      noviStatus ===
+      "planirano"
+    ) {
+      pushUpozorenje =
+        await posaljiPushRasporeda(
+          predavanje.id,
+          "promjena"
+        );
+    }
 
     await ucitajPodatke();
+
+    if (
+      noviStatus ===
+      "otkazano"
+    ) {
+      setUspjeh(
+        "Termin je otkazan."
+      );
+    } else if (
+      noviStatus ===
+      "odrzano"
+    ) {
+      setUspjeh(
+        "Termin je označen kao održan."
+      );
+    } else {
+      setUspjeh(
+        "Termin je ponovno postavljen kao planiran."
+      );
+    }
+
+    if (
+      pushUpozorenje
+    ) {
+      setGreska(
+        pushUpozorenje
+      );
+    }
 
     setPromjenaStatusaId(
       null
@@ -568,23 +740,10 @@ export default function RasporedPage() {
     return kraj >= new Date();
   }
 
-  const aktivneSkupine =
-    skupine.filter(
-      (skupina) =>
-        skupina.status ===
-        "aktivna"
-    );
-
   const aktivniProfesori =
     profesori.filter(
       (profesor) =>
         profesor.aktivan
-    );
-
-  const aktivneUcionice =
-    ucionice.filter(
-      (ucionica) =>
-        ucionica.aktivna
     );
 
   const nadolazecaPredavanja =
@@ -606,8 +765,9 @@ export default function RasporedPage() {
 
   const filtriranaPredavanja =
     useMemo(() => {
-      let rezultat =
-        [...predavanja];
+      let rezultat = [
+        ...predavanja,
+      ];
 
       if (
         prikaz ===
@@ -631,7 +791,9 @@ export default function RasporedPage() {
           );
       }
 
-      if (filterProfesor) {
+      if (
+        filterProfesor
+      ) {
         rezultat =
           rezultat.filter(
             (predavanje) =>
@@ -651,12 +813,15 @@ export default function RasporedPage() {
             (predavanje) => {
               const tekst = [
                 predavanje.naziv,
+
                 nazivSkupine(
                   predavanje.skupina_id
                 ),
+
                 nazivProfesora(
                   predavanje.profesor_id
                 ),
+
                 nazivUcionice(
                   predavanje.ucionica_id
                 ),
@@ -736,7 +901,9 @@ export default function RasporedPage() {
             }
             className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[#d7dde3] bg-white px-4 text-sm font-bold text-[#17324d]"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft
+              size={18}
+            />
             Natrag
           </button>
         </div>
@@ -757,6 +924,15 @@ export default function RasporedPage() {
             skupinama, planirajte termine i
             upravljajte učionicama.
           </p>
+
+          <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#dce4ea] bg-white px-4 py-3 text-sm font-semibold text-[#52606d]">
+            <BellRing
+              size={18}
+              className="text-[#17324d]"
+            />
+
+            Promjene rasporeda automatski šalju push obavijest.
+          </div>
         </section>
 
         <section className="mt-7 grid gap-3 sm:grid-cols-3">
@@ -826,7 +1002,7 @@ export default function RasporedPage() {
         </section>
 
         {greska && (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700">
+          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
             {greska}
           </div>
         )}
@@ -879,7 +1055,6 @@ export default function RasporedPage() {
                     odustaniOdUredjivanja
                   }
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#66717d]"
-                  aria-label="Odustani od uređivanja"
                 >
                   <X size={18} />
                 </button>
@@ -928,7 +1103,7 @@ export default function RasporedPage() {
                     Odaberite skupinu
                   </option>
 
-                  {aktivneSkupine.map(
+                  {skupine.map(
                     (skupina) => (
                       <option
                         key={
@@ -937,10 +1112,16 @@ export default function RasporedPage() {
                         value={
                           skupina.id
                         }
-                      >
-                        {
-                          skupina.naziv
+                        disabled={
+                          skupina.status !==
+                          "aktivna"
                         }
+                      >
+                        {skupina.naziv}
+                        {skupina.status !==
+                        "aktivna"
+                          ? " (neaktivna)"
+                          : ""}
                       </option>
                     )
                   )}
@@ -968,7 +1149,7 @@ export default function RasporedPage() {
                     Odaberite profesora
                   </option>
 
-                  {aktivniProfesori.map(
+                  {profesori.map(
                     (profesor) => (
                       <option
                         key={
@@ -977,9 +1158,15 @@ export default function RasporedPage() {
                         value={
                           profesor.id
                         }
+                        disabled={
+                          !profesor.aktivan
+                        }
                       >
                         {profesor.ime_prezime ??
                           "Profesor"}
+                        {!profesor.aktivan
+                          ? " (neaktivan)"
+                          : ""}
                       </option>
                     )
                   )}
@@ -988,7 +1175,9 @@ export default function RasporedPage() {
 
               <div>
                 <label className="mb-2 flex items-center gap-2 text-sm font-bold text-[#28333e]">
-                  <DoorOpen size={17} />
+                  <DoorOpen
+                    size={17}
+                  />
                   Učionica
                 </label>
 
@@ -1005,7 +1194,7 @@ export default function RasporedPage() {
                     Online / bez učionice
                   </option>
 
-                  {aktivneUcionice.map(
+                  {ucionice.map(
                     (ucionica) => (
                       <option
                         key={
@@ -1014,10 +1203,14 @@ export default function RasporedPage() {
                         value={
                           ucionica.id
                         }
-                      >
-                        {
-                          ucionica.naziv
+                        disabled={
+                          !ucionica.aktivna
                         }
+                      >
+                        {ucionica.naziv}
+                        {!ucionica.aktivna
+                          ? " (neaktivna)"
+                          : ""}
                       </option>
                     )
                   )}
