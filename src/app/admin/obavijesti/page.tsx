@@ -36,6 +36,13 @@ type Skupina = {
   status: string;
 };
 
+type Profesor = {
+  id: string;
+  ime_prezime: string | null;
+  email: string | null;
+  aktivan: boolean;
+};
+
 type Obavijest = {
   id: string;
   naslov: string;
@@ -76,6 +83,9 @@ export default function ObavijestiPage() {
   const [skupine, setSkupine] =
     useState<Skupina[]>([]);
 
+  const [profesori, setProfesori] =
+    useState<Profesor[]>([]);
+
   const [obavijesti, setObavijesti] =
     useState<Obavijest[]>([]);
 
@@ -94,6 +104,11 @@ export default function ObavijestiPage() {
   const [
     skupinaId,
     setSkupinaId,
+  ] = useState("");
+
+  const [
+    profesorId,
+    setProfesorId,
   ] = useState("");
 
   const [
@@ -220,6 +235,7 @@ export default function ObavijestiPage() {
 
     const [
       skupineRez,
+      profesoriRez,
       obavijestiRez,
     ] =
       await Promise.all([
@@ -231,6 +247,19 @@ export default function ObavijestiPage() {
             "id, naziv, status"
           )
           .order("naziv"),
+
+        supabase
+          .from("profili")
+          .select(
+            "id, ime_prezime, email, aktivan"
+          )
+          .eq(
+            "uloga",
+            "profesor"
+          )
+          .order(
+            "ime_prezime"
+          ),
 
         supabase
           .from("obavijesti")
@@ -254,6 +283,14 @@ export default function ObavijestiPage() {
     }
 
     if (
+      profesoriRez.error
+    ) {
+      setGreska(
+        "Nije moguće učitati profesore."
+      );
+    }
+
+    if (
       obavijestiRez.error
     ) {
       setGreska(
@@ -263,6 +300,11 @@ export default function ObavijestiPage() {
 
     setSkupine(
       skupineRez.data ??
+        []
+    );
+
+    setProfesori(
+      profesoriRez.data ??
         []
     );
 
@@ -334,6 +376,16 @@ export default function ObavijestiPage() {
       return;
     }
 
+    if (
+      cilj === "korisnik" &&
+      !profesorId
+    ) {
+      setGreska(
+        "Odaberite profesora."
+      );
+      return;
+    }
+
     const {
       data: { session },
     } =
@@ -379,7 +431,10 @@ export default function ObavijestiPage() {
               : null,
 
           korisnik_id:
-            null,
+            cilj ===
+            "korisnik"
+              ? profesorId
+              : null,
 
           zahtijeva_potvrdu:
             zahtijevaPotvrdu,
@@ -460,6 +515,12 @@ export default function ObavijestiPage() {
                     "skupina"
                       ? skupinaId
                       : null,
+
+                  korisnik_id:
+                    cilj ===
+                    "korisnik"
+                      ? profesorId
+                      : null,
                 }
               ),
             }
@@ -517,6 +578,7 @@ export default function ObavijestiPage() {
       setLink("");
       setCilj("svi");
       setSkupinaId("");
+      setProfesorId("");
       setZahtijevaPotvrdu(false);
 
       await ucitajPodatke();
@@ -1022,7 +1084,17 @@ export default function ObavijestiPage() {
       obavijest.cilj ===
       "korisnik"
     ) {
-      return "Pojedinačni korisnik";
+      const profesor =
+        profesori.find(
+          (stavka) =>
+            stavka.id ===
+            obavijest.korisnik_id
+        );
+
+      return profesor
+        ?.ime_prezime
+        ? `Profesor: ${profesor.ime_prezime}`
+        : "Određeni profesor";
     }
 
     return "Obavijest";
@@ -1109,6 +1181,12 @@ export default function ObavijestiPage() {
         "aktivna"
     );
 
+  const aktivniProfesori =
+    profesori.filter(
+      (profesor) =>
+        profesor.aktivan
+    );
+
   return (
     <main className="min-h-[100dvh] bg-[#f4f6f8]">
       <header className="sticky top-0 z-20 border-b border-[#e2e7ec] bg-white/95 backdrop-blur">
@@ -1156,8 +1234,8 @@ export default function ObavijestiPage() {
 
               <p className="mt-2 text-[15px] leading-6 text-[#66717d]">
                 Pošaljite obavijesti svim korisnicima,
-                polaznicima, profesorima ili odabranoj
-                obrazovnoj skupini.
+                polaznicima, profesorima, odabranoj
+                obrazovnoj skupini ili određenom profesoru.
               </p>
             </div>
           </div>
@@ -1297,6 +1375,16 @@ export default function ObavijestiPage() {
                         ""
                       );
                     }
+
+                    if (
+                      e.target
+                        .value !==
+                      "korisnik"
+                    ) {
+                      setProfesorId(
+                        ""
+                      );
+                    }
                   }}
                   className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10"
                 >
@@ -1314,6 +1402,10 @@ export default function ObavijestiPage() {
 
                   <option value="skupina">
                     Obrazovnoj skupini
+                  </option>
+
+                  <option value="korisnik">
+                    Određenom profesoru
                   </option>
                 </select>
               </div>
@@ -1374,6 +1466,70 @@ export default function ObavijestiPage() {
                     <p className="mt-2 text-[12px] leading-5 text-[#8b949e]">
                       Trenutačno nema aktivnih obrazovnih
                       skupina.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {cilj ===
+                "korisnik" && (
+                <div>
+                  <label
+                    htmlFor="profesor"
+                    className="mb-2 block text-[13px] font-bold text-[#384550]"
+                  >
+                    Profesor
+                    <span className="ml-1 text-[#c9252d]">
+                      *
+                    </span>
+                  </label>
+
+                  <select
+                    id="profesor"
+                    value={
+                      profesorId
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setProfesorId(
+                        e.target.value
+                      )
+                    }
+                    className="min-h-[48px] w-full rounded-xl border border-[#d6dde3] bg-white px-4 text-[15px] text-[#17202a] outline-none transition focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10"
+                  >
+                    <option value="">
+                      Odaberite profesora
+                    </option>
+
+                    {aktivniProfesori.map(
+                      (
+                        profesor
+                      ) => (
+                        <option
+                          key={
+                            profesor.id
+                          }
+                          value={
+                            profesor.id
+                          }
+                        >
+                          {profesor.ime_prezime ||
+                            profesor.email ||
+                            "Profesor"}
+                          {profesor.ime_prezime &&
+                          profesor.email
+                            ? ` – ${profesor.email}`
+                            : ""}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  {aktivniProfesori.length ===
+                    0 && (
+                    <p className="mt-2 text-[12px] leading-5 text-[#8b949e]">
+                      Trenutačno nema aktivnih profesora.
                     </p>
                   )}
                 </div>
