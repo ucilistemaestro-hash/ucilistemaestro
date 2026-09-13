@@ -15,6 +15,8 @@ import {
   BellRing,
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   DoorOpen,
   GraduationCap,
@@ -130,6 +132,27 @@ export default function RasporedPage() {
     useState<PrikazRasporeda>(
       "nadolazeca"
     );
+
+  const [
+    filterDatum,
+    setFilterDatum,
+  ] = useState("");
+
+  const [
+    mjesecKalendara,
+    setMjesecKalendara,
+  ] = useState(() => {
+    const sada = new Date();
+
+    const godina =
+      sada.getFullYear();
+
+    const mjesec = String(
+      sada.getMonth() + 1
+    ).padStart(2, "0");
+
+    return `${godina}-${mjesec}`;
+  });
 
   const [greska, setGreska] =
     useState("");
@@ -859,6 +882,109 @@ export default function RasporedPage() {
     );
   }
 
+  function formatDatumZaBazu(
+    datumVrijednost: Date
+  ) {
+    const godina =
+      datumVrijednost.getFullYear();
+
+    const mjesec = String(
+      datumVrijednost.getMonth() + 1
+    ).padStart(2, "0");
+
+    const dan = String(
+      datumVrijednost.getDate()
+    ).padStart(2, "0");
+
+    return `${godina}-${mjesec}-${dan}`;
+  }
+
+  function danasLokalno() {
+    return formatDatumZaBazu(
+      new Date()
+    );
+  }
+
+  function nazivMjeseca(
+    mjesecVrijednost: string
+  ) {
+    const [
+      godina,
+      mjesec,
+    ] = mjesecVrijednost
+      .split("-")
+      .map(Number);
+
+    return new Date(
+      godina,
+      mjesec - 1,
+      1,
+      12,
+      0,
+      0
+    ).toLocaleDateString(
+      "hr-HR",
+      {
+        month: "long",
+        year: "numeric",
+      }
+    );
+  }
+
+  function pomakniMjesec(
+    smjer: number
+  ) {
+    const [
+      godina,
+      mjesec,
+    ] = mjesecKalendara
+      .split("-")
+      .map(Number);
+
+    const noviDatum =
+      new Date(
+        godina,
+        mjesec - 1 + smjer,
+        1,
+        12,
+        0,
+        0
+      );
+
+    const noviMjesec =
+      String(
+        noviDatum.getMonth() + 1
+      ).padStart(2, "0");
+
+    setMjesecKalendara(
+      `${noviDatum.getFullYear()}-${noviMjesec}`
+    );
+  }
+
+  function idiNaDanas() {
+    const danas =
+      danasLokalno();
+
+    setMjesecKalendara(
+      danas.slice(
+        0,
+        7
+      )
+    );
+  }
+
+  function odaberiDatumKalendara(
+    datumVrijednost: string
+  ) {
+    setFilterDatum(
+      datumVrijednost
+    );
+
+    setPrikaz(
+      "sva"
+    );
+  }
+
   function terminJeBuduci(
     predavanje: Predavanje
   ) {
@@ -868,6 +994,133 @@ export default function RasporedPage() {
 
     return kraj >= new Date();
   }
+
+  const predavanjaPoDatumu =
+    useMemo(() => {
+      const mapa =
+        new Map<
+          string,
+          Predavanje[]
+        >();
+
+      predavanja.forEach(
+        (predavanje) => {
+          const postojeca =
+            mapa.get(
+              predavanje.datum
+            ) ?? [];
+
+          postojeca.push(
+            predavanje
+          );
+
+          mapa.set(
+            predavanje.datum,
+            postojeca
+          );
+        }
+      );
+
+      return mapa;
+    }, [predavanja]);
+
+  const daniKalendara =
+    useMemo(() => {
+      const [
+        godina,
+        mjesec,
+      ] = mjesecKalendara
+        .split("-")
+        .map(Number);
+
+      const prviDan =
+        new Date(
+          godina,
+          mjesec - 1,
+          1,
+          12,
+          0,
+          0
+        );
+
+      const brojDana =
+        new Date(
+          godina,
+          mjesec,
+          0,
+          12,
+          0,
+          0
+        ).getDate();
+
+      const pomak =
+        (prviDan.getDay() +
+          6) %
+        7;
+
+      return Array.from(
+        { length: 42 },
+        (_, indeks) => {
+          const brojDanaUMjesecu =
+            indeks -
+            pomak +
+            1;
+
+          if (
+            brojDanaUMjesecu <
+              1 ||
+            brojDanaUMjesecu >
+              brojDana
+          ) {
+            return null;
+          }
+
+          return formatDatumZaBazu(
+            new Date(
+              godina,
+              mjesec - 1,
+              brojDanaUMjesecu,
+              12,
+              0,
+              0
+            )
+          );
+        }
+      );
+    }, [mjesecKalendara]);
+
+  const brojPredavanjaUMjesecu =
+    useMemo(() => {
+      return predavanja.filter(
+        (predavanje) =>
+          predavanje.datum.startsWith(
+            `${mjesecKalendara}-`
+          )
+      ).length;
+    }, [
+      predavanja,
+      mjesecKalendara,
+    ]);
+
+  const brojDanaSPredavanjima =
+    useMemo(() => {
+      return new Set(
+        predavanja
+          .filter(
+            (predavanje) =>
+              predavanje.datum.startsWith(
+                `${mjesecKalendara}-`
+              )
+          )
+          .map(
+            (predavanje) =>
+              predavanje.datum
+          )
+      ).size;
+    }, [
+      predavanja,
+      mjesecKalendara,
+    ]);
 
   const aktivniProfesori =
     profesori.filter(
@@ -908,6 +1161,15 @@ export default function RasporedPage() {
               terminJeBuduci(
                 predavanje
               )
+          );
+      }
+
+      if (filterDatum) {
+        rezultat =
+          rezultat.filter(
+            (predavanje) =>
+              predavanje.datum ===
+              filterDatum
           );
       }
 
@@ -969,6 +1231,7 @@ export default function RasporedPage() {
     }, [
       predavanja,
       prikaz,
+      filterDatum,
       filterSkupina,
       filterProfesor,
       pretraga,
@@ -1141,6 +1404,325 @@ export default function RasporedPage() {
             {uspjeh}
           </div>
         )}
+
+        <section className="mt-8 overflow-hidden rounded-[22px] border border-[#dfe5ea] bg-white shadow-[0_5px_18px_rgba(23,50,77,0.04)]">
+          <div className="border-b border-[#e8ecef] px-5 py-5 md:px-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+                    <CalendarDays
+                      size={22}
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9252d]">
+                      Mjesečni kalendar
+                    </p>
+
+                    <h2 className="mt-0.5 text-[22px] font-extrabold text-[#17202a]">
+                      Dani s predavanjima
+                    </h2>
+                  </div>
+                </div>
+
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#66717d]">
+                  Dani na kojima postoji predavanje označeni su u
+                  kalendaru. Klikom na datum možete odmah prikazati
+                  samo termine tog dana.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    pomakniMjesec(
+                      -1
+                    )
+                  }
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d7dde3] bg-white text-[#17324d] transition hover:bg-[#f4f6f8]"
+                  aria-label="Prethodni mjesec"
+                >
+                  <ChevronLeft
+                    size={19}
+                  />
+                </button>
+
+                <div className="min-w-[190px] rounded-xl border border-[#d7dde3] bg-[#f8fafb] px-4 py-2.5 text-center text-sm font-extrabold capitalize text-[#17202a]">
+                  {nazivMjeseca(
+                    mjesecKalendara
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    pomakniMjesec(
+                      1
+                    )
+                  }
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d7dde3] bg-white text-[#17324d] transition hover:bg-[#f4f6f8]"
+                  aria-label="Sljedeći mjesec"
+                >
+                  <ChevronRight
+                    size={19}
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    idiNaDanas
+                  }
+                  className="min-h-[44px] rounded-xl bg-[#17324d] px-4 text-sm font-bold text-white transition hover:bg-[#102437]"
+                >
+                  Danas
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="rounded-full bg-[#f4f6f8] px-3 py-1.5 text-xs font-bold text-[#52606d]">
+                Predavanja u mjesecu:{" "}
+                <span className="text-[#17202a]">
+                  {
+                    brojPredavanjaUMjesecu
+                  }
+                </span>
+              </span>
+
+              <span className="rounded-full bg-[#f4f6f8] px-3 py-1.5 text-xs font-bold text-[#52606d]">
+                Dana s predavanjima:{" "}
+                <span className="text-[#17202a]">
+                  {
+                    brojDanaSPredavanjima
+                  }
+                </span>
+              </span>
+
+              {filterDatum && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFilterDatum(
+                      ""
+                    )
+                  }
+                  className="flex items-center gap-1.5 rounded-full border border-[#c7d2dc] bg-white px-3 py-1.5 text-xs font-bold text-[#17324d] transition hover:bg-[#f4f6f8]"
+                >
+                  <X size={14} />
+
+                  Ukloni odabrani datum:{" "}
+                  {new Date(
+                    `${filterDatum}T12:00:00`
+                  ).toLocaleDateString(
+                    "hr-HR"
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto p-4 md:p-6">
+            <div className="min-w-[700px]">
+              <div className="grid grid-cols-7 gap-2">
+                {[
+                  "Pon",
+                  "Uto",
+                  "Sri",
+                  "Čet",
+                  "Pet",
+                  "Sub",
+                  "Ned",
+                ].map(
+                  (dan) => (
+                    <div
+                      key={dan}
+                      className="px-2 pb-2 text-center text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#8b949e]"
+                    >
+                      {dan}
+                    </div>
+                  )
+                )}
+
+                {daniKalendara.map(
+                  (
+                    datumKalendara,
+                    indeks
+                  ) => {
+                    if (
+                      !datumKalendara
+                    ) {
+                      return (
+                        <div
+                          key={`prazno-${indeks}`}
+                          className="min-h-[98px] rounded-[16px] bg-[#fafbfc]"
+                        />
+                      );
+                    }
+
+                    const terminiDana =
+                      predavanjaPoDatumu.get(
+                        datumKalendara
+                      ) ?? [];
+
+                    const planirana =
+                      terminiDana.filter(
+                        (predavanje) =>
+                          predavanje.status ===
+                          "planirano"
+                      ).length;
+
+                    const odrzana =
+                      terminiDana.filter(
+                        (predavanje) =>
+                          predavanje.status ===
+                          "odrzano"
+                      ).length;
+
+                    const otkazana =
+                      terminiDana.filter(
+                        (predavanje) =>
+                          predavanje.status ===
+                          "otkazano"
+                      ).length;
+
+                    const imaPredavanja =
+                      terminiDana.length >
+                      0;
+
+                    const odabrano =
+                      filterDatum ===
+                      datumKalendara;
+
+                    const danas =
+                      danasLokalno() ===
+                      datumKalendara;
+
+                    const brojDana =
+                      Number(
+                        datumKalendara.slice(
+                          8,
+                          10
+                        )
+                      );
+
+                    return (
+                      <button
+                        key={
+                          datumKalendara
+                        }
+                        type="button"
+                        onClick={() =>
+                          odaberiDatumKalendara(
+                            datumKalendara
+                          )
+                        }
+                        className={`relative min-h-[98px] rounded-[16px] border p-3 text-left transition ${
+                          odabrano
+                            ? "border-[#17324d] bg-[#eaf0f5] ring-2 ring-[#17324d]/10"
+                            : imaPredavanja
+                              ? "border-[#cbd7e0] bg-[#f7fafc] hover:border-[#17324d] hover:bg-[#eef3f7]"
+                              : "border-[#edf0f2] bg-white hover:bg-[#f8fafb]"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span
+                            className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-extrabold ${
+                              danas
+                                ? "bg-[#c9252d] text-white"
+                                : "text-[#17202a]"
+                            }`}
+                          >
+                            {
+                              brojDana
+                            }
+                          </span>
+
+                          {imaPredavanja && (
+                            <span className="flex min-w-[26px] h-6 items-center justify-center rounded-full bg-[#17324d] px-2 text-[11px] font-extrabold text-white">
+                              {
+                                terminiDana.length
+                              }
+                            </span>
+                          )}
+                        </div>
+
+                        {imaPredavanja ? (
+                          <div className="mt-3">
+                            <p className="truncate text-[11px] font-bold text-[#52606d]">
+                              {terminiDana.length ===
+                              1
+                                ? "1 predavanje"
+                                : `${terminiDana.length} predavanja`}
+                            </p>
+
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                              {planirana >
+                                0 && (
+                                <span
+                                  className="h-2.5 w-2.5 rounded-full bg-[#17324d]"
+                                  title={`${planirana} planirano`}
+                                />
+                              )}
+
+                              {odrzana >
+                                0 && (
+                                <span
+                                  className="h-2.5 w-2.5 rounded-full bg-green-600"
+                                  title={`${odrzana} održano`}
+                                />
+                              )}
+
+                              {otkazana >
+                                0 && (
+                                <span
+                                  className="h-2.5 w-2.5 rounded-full bg-[#c9252d]"
+                                  title={`${otkazana} otkazano`}
+                                />
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-[11px] font-semibold text-[#a0a8b0]">
+                            Bez termina
+                          </p>
+                        )}
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl bg-[#f8fafb] px-4 py-3 text-xs font-semibold text-[#66717d]">
+                <span className="font-bold text-[#52606d]">
+                  Oznake:
+                </span>
+
+                <span className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#17324d]" />
+                  Planirano
+                </span>
+
+                <span className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-green-600" />
+                  Održano
+                </span>
+
+                <span className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#c9252d]" />
+                  Otkazano
+                </span>
+
+                <span className="ml-auto text-[#8b949e]">
+                  Broj u gornjem desnom kutu = ukupan broj termina tog dana
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <div className="mt-8 grid gap-8 xl:grid-cols-[420px_1fr]">
           <section className="h-fit rounded-[22px] border border-[#dfe5ea] bg-white p-6 shadow-[0_5px_18px_rgba(23,50,77,0.04)]">
@@ -1447,7 +2029,10 @@ export default function RasporedPage() {
             </form>
           </section>
 
-          <section className="min-w-0">
+          <section
+            id="termini-nastave"
+            className="min-w-0"
+          >
             <div className="rounded-[22px] border border-[#dfe5ea] bg-white p-5">
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div>
@@ -1580,6 +2165,37 @@ export default function RasporedPage() {
                   )}
                 </select>
               </div>
+
+              {filterDatum && (
+                <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-[#cbd7e0] bg-[#f7fafc] px-4 py-3">
+                  <CalendarDays
+                    size={17}
+                    className="text-[#17324d]"
+                  />
+
+                  <p className="text-sm font-semibold text-[#52606d]">
+                    Prikaz termina za:{" "}
+                    <span className="font-extrabold capitalize text-[#17202a]">
+                      {formatDatum(
+                        filterDatum
+                      )}
+                    </span>
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFilterDatum(
+                        ""
+                      )
+                    }
+                    className="ml-auto flex min-h-[34px] items-center gap-1.5 rounded-lg border border-[#d7dde3] bg-white px-3 text-xs font-bold text-[#17324d]"
+                  >
+                    <X size={14} />
+                    Prikaži sve datume
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="mt-4 flex items-center justify-between px-1">
@@ -1591,12 +2207,16 @@ export default function RasporedPage() {
               </p>
 
               {(pretraga ||
+                filterDatum ||
                 filterSkupina ||
                 filterProfesor) && (
                 <button
                   type="button"
                   onClick={() => {
                     setPretraga("");
+                    setFilterDatum(
+                      ""
+                    );
                     setFilterSkupina(
                       ""
                     );
