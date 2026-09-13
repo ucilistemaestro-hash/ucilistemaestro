@@ -10,7 +10,11 @@ import { useRouter } from "next/navigation";
 
 import {
   ArrowLeft,
+  CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
   DoorOpen,
   LoaderCircle,
   MapPin,
@@ -35,11 +39,85 @@ type Ucionica = {
   aktivna: boolean;
 };
 
+type PredavanjeZauzetost = {
+  id: string;
+  ucionica_id: string | null;
+  skupina_id: string;
+  profesor_id: string | null;
+  naziv: string;
+  datum: string;
+  vrijeme_pocetka: string;
+  vrijeme_zavrsetka: string;
+  status: string;
+  skupina_naziv: string;
+  profesor_naziv: string;
+};
+
+type PrikazZauzetosti =
+  | "dan"
+  | "tjedan";
+
+const POCETAK_PRIKAZA_MIN = 8 * 60;
+const KRAJ_PRIKAZA_MIN = 20 * 60;
+const UKUPNO_MINUTA_PRIKAZA =
+  KRAJ_PRIKAZA_MIN -
+  POCETAK_PRIKAZA_MIN;
+
+function danasLokalno() {
+  const sada = new Date();
+  const godina = sada.getFullYear();
+  const mjesec = String(
+    sada.getMonth() + 1
+  ).padStart(2, "0");
+  const dan = String(
+    sada.getDate()
+  ).padStart(2, "0");
+
+  return `${godina}-${mjesec}-${dan}`;
+}
+
 export default function UcionicePage() {
   const router = useRouter();
 
   const [ucionice, setUcionice] =
     useState<Ucionica[]>([]);
+
+  const [
+    pristupPotvrden,
+    setPristupPotvrden,
+  ] = useState(false);
+
+  const [
+    odabraniDatum,
+    setOdabraniDatum,
+  ] = useState(
+    danasLokalno()
+  );
+
+  const [
+    prikazZauzetosti,
+    setPrikazZauzetosti,
+  ] =
+    useState<PrikazZauzetosti>(
+      "dan"
+    );
+
+  const [
+    predavanjaDana,
+    setPredavanjaDana,
+  ] = useState<
+    PredavanjeZauzetost[]
+  >([]);
+
+  const [
+    ucitavanjeZauzetosti,
+    setUcitavanjeZauzetosti,
+  ] = useState(false);
+
+  const [
+    greskaZauzetosti,
+    setGreskaZauzetosti,
+  ] = useState("");
 
   const [
     ucitavanje,
@@ -101,6 +179,20 @@ export default function UcionicePage() {
     void provjeriPristup();
   }, []);
 
+  useEffect(() => {
+    if (!pristupPotvrden) {
+      return;
+    }
+
+    void ucitajZauzetost(
+      odabraniDatum
+    );
+  }, [
+    odabraniDatum,
+    pristupPotvrden,
+    prikazZauzetosti,
+  ]);
+
   async function provjeriPristup() {
     setGreska("");
 
@@ -141,6 +233,10 @@ export default function UcionicePage() {
     }
 
     await ucitajUcionice();
+
+    setPristupPotvrden(
+      true
+    );
   }
 
   async function ucitajUcionice() {
@@ -167,6 +263,838 @@ export default function UcionicePage() {
     }
 
     setUcitavanje(false);
+  }
+
+  function formatDatumZaBazu(
+    datum: Date
+  ) {
+    const godina =
+      datum.getFullYear();
+
+    const mjesec = String(
+      datum.getMonth() + 1
+    ).padStart(2, "0");
+
+    const dan = String(
+      datum.getDate()
+    ).padStart(2, "0");
+
+    return `${godina}-${mjesec}-${dan}`;
+  }
+
+  function pocetakTjedna(
+    datumVrijednost: string
+  ) {
+    const datum = new Date(
+      `${datumVrijednost}T12:00:00`
+    );
+
+    const danUTjednu =
+      datum.getDay();
+
+    const pomakDoPonedjeljka =
+      danUTjednu === 0
+        ? -6
+        : 1 - danUTjednu;
+
+    datum.setDate(
+      datum.getDate() +
+        pomakDoPonedjeljka
+    );
+
+    return formatDatumZaBazu(
+      datum
+    );
+  }
+
+  function krajTjedna(
+    datumVrijednost: string
+  ) {
+    const ponedjeljak =
+      new Date(
+        `${pocetakTjedna(
+          datumVrijednost
+        )}T12:00:00`
+      );
+
+    ponedjeljak.setDate(
+      ponedjeljak.getDate() +
+        6
+    );
+
+    return formatDatumZaBazu(
+      ponedjeljak
+    );
+  }
+
+  function datumiTjedna(
+    datumVrijednost: string
+  ) {
+    const prviDan =
+      new Date(
+        `${pocetakTjedna(
+          datumVrijednost
+        )}T12:00:00`
+      );
+
+    return Array.from(
+      { length: 7 },
+      (_, index) => {
+        const datum =
+          new Date(
+            prviDan
+          );
+
+        datum.setDate(
+          prviDan.getDate() +
+            index
+        );
+
+        return formatDatumZaBazu(
+          datum
+        );
+      }
+    );
+  }
+
+  function formatKratkiDatum(
+    datumVrijednost: string
+  ) {
+    return new Date(
+      `${datumVrijednost}T12:00:00`
+    ).toLocaleDateString(
+      "hr-HR",
+      {
+        weekday: "long",
+        day: "numeric",
+        month: "numeric",
+      }
+    );
+  }
+
+  function formatRasponTjedna(
+    datumVrijednost: string
+  ) {
+    const pocetak =
+      pocetakTjedna(
+        datumVrijednost
+      );
+
+    const kraj =
+      krajTjedna(
+        datumVrijednost
+      );
+
+    const pocetakTekst =
+      new Date(
+        `${pocetak}T12:00:00`
+      ).toLocaleDateString(
+        "hr-HR",
+        {
+          day: "numeric",
+          month: "long",
+        }
+      );
+
+    const krajTekst =
+      new Date(
+        `${kraj}T12:00:00`
+      ).toLocaleDateString(
+        "hr-HR",
+        {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }
+      );
+
+    return `${pocetakTekst} – ${krajTekst}`;
+  }
+
+  async function ucitajZauzetost(
+    datum: string
+  ) {
+    setUcitavanjeZauzetosti(
+      true
+    );
+    setGreskaZauzetosti("");
+
+    try {
+      let predavanjaUpit =
+        supabase
+          .from("predavanja")
+          .select(
+            "id, ucionica_id, skupina_id, profesor_id, naziv, datum, vrijeme_pocetka, vrijeme_zavrsetka, status"
+          )
+          .neq(
+            "status",
+            "otkazano"
+          );
+
+      if (
+        prikazZauzetosti ===
+        "tjedan"
+      ) {
+        predavanjaUpit =
+          predavanjaUpit
+            .gte(
+              "datum",
+              pocetakTjedna(
+                datum
+              )
+            )
+            .lte(
+              "datum",
+              krajTjedna(
+                datum
+              )
+            );
+      } else {
+        predavanjaUpit =
+          predavanjaUpit.eq(
+            "datum",
+            datum
+          );
+      }
+
+      const {
+        data:
+          predavanjaData,
+        error:
+          predavanjaError,
+      } =
+        await predavanjaUpit
+          .order(
+            "datum",
+            {
+              ascending: true,
+            }
+          )
+          .order(
+            "vrijeme_pocetka",
+            {
+              ascending: true,
+            }
+          );
+
+      if (
+        predavanjaError
+      ) {
+        setGreskaZauzetosti(
+          "Nije moguće učitati zauzetost učionica za odabrani datum."
+        );
+        setPredavanjaDana([]);
+        return;
+      }
+
+      const predavanja =
+        predavanjaData ??
+        [];
+
+      const skupinaIds = [
+        ...new Set(
+          predavanja
+            .map(
+              (predavanje) =>
+                predavanje.skupina_id
+            )
+            .filter(Boolean)
+        ),
+      ];
+
+      const profesorIds = [
+        ...new Set(
+          predavanja
+            .map(
+              (predavanje) =>
+                predavanje.profesor_id
+            )
+            .filter(
+              (
+                vrijednost
+              ): vrijednost is string =>
+                Boolean(
+                  vrijednost
+                )
+            )
+        ),
+      ];
+
+      const [
+        skupineRezultat,
+        profesoriRezultat,
+      ] = await Promise.all([
+        skupinaIds.length >
+        0
+          ? supabase
+              .from(
+                "obrazovne_skupine"
+              )
+              .select(
+                "id, naziv"
+              )
+              .in(
+                "id",
+                skupinaIds
+              )
+          : Promise.resolve({
+              data: [],
+              error: null,
+            }),
+
+        profesorIds.length >
+        0
+          ? supabase
+              .from("profili")
+              .select(
+                "id, ime_prezime"
+              )
+              .in(
+                "id",
+                profesorIds
+              )
+          : Promise.resolve({
+              data: [],
+              error: null,
+            }),
+      ]);
+
+      if (
+        skupineRezultat.error ||
+        profesoriRezultat.error
+      ) {
+        setGreskaZauzetosti(
+          "Termini su pronađeni, ali dodatne podatke o skupinama ili profesorima nije moguće učitati."
+        );
+      }
+
+      const skupinaPoId =
+        new Map(
+          (
+            skupineRezultat.data ??
+            []
+          ).map(
+            (skupina) => [
+              skupina.id,
+              skupina.naziv,
+            ]
+          )
+        );
+
+      const profesorPoId =
+        new Map(
+          (
+            profesoriRezultat.data ??
+            []
+          ).map(
+            (profesor) => [
+              profesor.id,
+              profesor.ime_prezime,
+            ]
+          )
+        );
+
+      setPredavanjaDana(
+        predavanja.map(
+          (predavanje) => ({
+            ...predavanje,
+            skupina_naziv:
+              skupinaPoId.get(
+                predavanje.skupina_id
+              ) ??
+              "Obrazovna skupina",
+            profesor_naziv:
+              predavanje.profesor_id
+                ? profesorPoId.get(
+                    predavanje.profesor_id
+                  ) ??
+                  "Profesor"
+                : "Profesor nije dodijeljen",
+          })
+        )
+      );
+    } catch (error) {
+      console.error(
+        "Greška učitavanja zauzetosti učionica:",
+        error
+      );
+
+      setGreskaZauzetosti(
+        "Došlo je do neočekivane greške pri učitavanju zauzetosti."
+      );
+
+      setPredavanjaDana([]);
+    } finally {
+      setUcitavanjeZauzetosti(
+        false
+      );
+    }
+  }
+
+  function pomakniRazdoblje(
+    smjer: number
+  ) {
+    const datum = new Date(
+      `${odabraniDatum}T12:00:00`
+    );
+
+    const brojDana =
+      prikazZauzetosti ===
+      "tjedan"
+        ? 7 * smjer
+        : smjer;
+
+    datum.setDate(
+      datum.getDate() +
+        brojDana
+    );
+
+    setOdabraniDatum(
+      formatDatumZaBazu(
+        datum
+      )
+    );
+  }
+
+  function minuteIzVremena(
+    vrijeme: string
+  ) {
+    const [
+      sati,
+      minute,
+    ] = vrijeme
+      .split(":")
+      .map(Number);
+
+    return (
+      sati * 60 +
+      minute
+    );
+  }
+
+  function pozicijaTermina(
+    predavanje: PredavanjeZauzetost
+  ) {
+    const pocetak =
+      minuteIzVremena(
+        predavanje.vrijeme_pocetka
+      );
+
+    const kraj =
+      minuteIzVremena(
+        predavanje.vrijeme_zavrsetka
+      );
+
+    const ograniceniPocetak =
+      Math.max(
+        pocetak,
+        POCETAK_PRIKAZA_MIN
+      );
+
+    const ograniceniKraj =
+      Math.min(
+        kraj,
+        KRAJ_PRIKAZA_MIN
+      );
+
+    if (
+      ograniceniKraj <=
+      ograniceniPocetak
+    ) {
+      return null;
+    }
+
+    return {
+      left:
+        ((ograniceniPocetak -
+          POCETAK_PRIKAZA_MIN) /
+          UKUPNO_MINUTA_PRIKAZA) *
+        100,
+
+      width:
+        ((ograniceniKraj -
+          ograniceniPocetak) /
+          UKUPNO_MINUTA_PRIKAZA) *
+        100,
+    };
+  }
+
+  function predavanjaUcionice(
+    ucionicaId: string,
+    datum?: string
+  ) {
+    return predavanjaDana.filter(
+      (predavanje) =>
+        predavanje.ucionica_id ===
+          ucionicaId &&
+        (
+          !datum ||
+          predavanje.datum ===
+            datum
+        )
+    );
+  }
+
+  function formatVrijeme(
+    vrijeme: string
+  ) {
+    return vrijeme.slice(
+      0,
+      5
+    );
+  }
+
+  function formatPuniDatum(
+    datum: string
+  ) {
+    return new Date(
+      `${datum}T12:00:00`
+    ).toLocaleDateString(
+      "hr-HR",
+      {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }
+    );
+  }
+
+  const satiPrikaza =
+    Array.from(
+      {
+        length:
+          KRAJ_PRIKAZA_MIN /
+            60 -
+          POCETAK_PRIKAZA_MIN /
+            60 +
+          1,
+      },
+      (
+        _,
+        index
+      ) =>
+        POCETAK_PRIKAZA_MIN /
+          60 +
+        index
+    );
+
+  const aktivneUcionice =
+    ucionice.filter(
+      (ucionica) =>
+        ucionica.aktivna
+    );
+
+  const zauzeteAktivneUcionice =
+    aktivneUcionice.filter(
+      (ucionica) =>
+        predavanjaDana.some(
+          (predavanje) =>
+            predavanje.ucionica_id ===
+            ucionica.id
+        )
+    ).length;
+
+  const slobodneAktivneUcionice =
+    Math.max(
+      0,
+      aktivneUcionice.length -
+        zauzeteAktivneUcionice
+    );
+
+  const odabraniTjedan =
+    datumiTjedna(
+      odabraniDatum
+    );
+
+  function prikaziVremenskuTraku(
+    datumZaGraf: string
+  ) {
+    return (
+      <div className="overflow-x-auto">
+        <div className="min-w-[980px]">
+          <div className="grid grid-cols-[190px_1fr] gap-4">
+            <div />
+
+            <div className="relative h-8">
+              {satiPrikaza.map(
+                (sat) => {
+                  const left =
+                    ((sat *
+                        60 -
+                      POCETAK_PRIKAZA_MIN) /
+                      UKUPNO_MINUTA_PRIKAZA) *
+                    100;
+
+                  return (
+                    <span
+                      key={sat}
+                      className="absolute top-0 -translate-x-1/2 text-[11px] font-bold text-[#8b949e]"
+                      style={{
+                        left: `${left}%`,
+                      }}
+                    >
+                      {String(
+                        sat
+                      ).padStart(
+                        2,
+                        "0"
+                      )}
+                      :00
+                    </span>
+                  );
+                }
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {ucionice.map(
+              (
+                ucionica
+              ) => {
+                const termini =
+                  predavanjaUcionice(
+                    ucionica.id,
+                    datumZaGraf
+                  );
+
+                return (
+                  <div
+                    key={
+                      ucionica.id
+                    }
+                    className="grid grid-cols-[190px_1fr] gap-4"
+                  >
+                    <div className="flex min-h-[74px] flex-col justify-center rounded-xl border border-[#e0e5e9] bg-[#f8fafb] px-3">
+                      <div className="flex items-center gap-2">
+                        <DoorOpen
+                          size={16}
+                          className="shrink-0 text-[#17324d]"
+                        />
+
+                        <p className="truncate text-[13px] font-bold text-[#17202a]">
+                          {
+                            ucionica.naziv
+                          }
+                        </p>
+                      </div>
+
+                      <p className="mt-1 text-[11px] text-[#8b949e]">
+                        {ucionica.aktivna
+                          ? termini.length >
+                            0
+                            ? `${termini.length} ${
+                                termini.length ===
+                                1
+                                  ? "termin"
+                                  : "termina"
+                              }`
+                            : "Nema termina"
+                          : "Neaktivna"}
+                      </p>
+                    </div>
+
+                    <div className="relative min-h-[74px] overflow-hidden rounded-xl border border-[#e0e5e9] bg-white">
+                      {satiPrikaza.map(
+                        (
+                          sat,
+                          index
+                        ) => {
+                          if (
+                            index ===
+                              0 ||
+                            index ===
+                              satiPrikaza.length -
+                                1
+                          ) {
+                            return null;
+                          }
+
+                          const left =
+                            ((sat *
+                                60 -
+                              POCETAK_PRIKAZA_MIN) /
+                              UKUPNO_MINUTA_PRIKAZA) *
+                            100;
+
+                          return (
+                            <div
+                              key={
+                                sat
+                              }
+                              className="pointer-events-none absolute inset-y-0 border-l border-dashed border-[#e5e9ec]"
+                              style={{
+                                left: `${left}%`,
+                              }}
+                            />
+                          );
+                        }
+                      )}
+
+                      {termini.length ===
+                      0 ? (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="rounded-full bg-[#edf7f0] px-3 py-1 text-[11px] font-bold text-[#277442]">
+                            Slobodna
+                          </span>
+                        </div>
+                      ) : (
+                        termini.map(
+                          (
+                            predavanje
+                          ) => {
+                            const pozicija =
+                              pozicijaTermina(
+                                predavanje
+                              );
+
+                            if (
+                              !pozicija
+                            ) {
+                              return null;
+                            }
+
+                            return (
+                              <div
+                                key={
+                                  predavanje.id
+                                }
+                                title={`${predavanje.naziv} · ${predavanje.skupina_naziv} · ${predavanje.profesor_naziv} · ${formatVrijeme(
+                                  predavanje.vrijeme_pocetka
+                                )}–${formatVrijeme(
+                                  predavanje.vrijeme_zavrsetka
+                                )}`}
+                                className={`absolute top-2 bottom-2 overflow-hidden rounded-lg border px-2 py-1.5 shadow-sm ${
+                                  predavanje.status ===
+                                  "odrzano"
+                                    ? "border-[#b9ddc4] bg-[#eaf7ee] text-[#245f38]"
+                                    : "border-[#b9c9d6] bg-[#eaf0f5] text-[#17324d]"
+                                }`}
+                                style={{
+                                  left: `${pozicija.left}%`,
+                                  width: `${pozicija.width}%`,
+                                }}
+                              >
+                                <p className="truncate text-[11px] font-extrabold">
+                                  {
+                                    predavanje.naziv
+                                  }
+                                </p>
+
+                                <p className="mt-0.5 truncate text-[10px] font-semibold opacity-80">
+                                  {formatVrijeme(
+                                    predavanje.vrijeme_pocetka
+                                  )}
+                                  –
+                                  {formatVrijeme(
+                                    predavanje.vrijeme_zavrsetka
+                                  )}
+                                </p>
+                              </div>
+                            );
+                          }
+                        )
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function prikaziTermine(
+    predavanja: PredavanjeZauzetost[]
+  ) {
+    if (
+      predavanja.length ===
+      0
+    ) {
+      return null;
+    }
+
+    return (
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {predavanja.map(
+          (
+            predavanje
+          ) => {
+            const ucionica =
+              ucionice.find(
+                (
+                  stavka
+                ) =>
+                  stavka.id ===
+                  predavanje.ucionica_id
+              );
+
+            return (
+              <div
+                key={
+                  predavanje.id
+                }
+                className="rounded-[16px] border border-[#dfe5ea] bg-[#f8fafb] p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold leading-5 text-[#17202a]">
+                      {
+                        predavanje.naziv
+                      }
+                    </p>
+
+                    <p className="mt-1 text-[12px] font-semibold text-[#c9252d]">
+                      {formatVrijeme(
+                        predavanje.vrijeme_pocetka
+                      )}
+                      {" – "}
+                      {formatVrijeme(
+                        predavanje.vrijeme_zavrsetka
+                      )}
+                    </p>
+                  </div>
+
+                  <DoorOpen
+                    size={17}
+                    className="shrink-0 text-[#17324d]"
+                  />
+                </div>
+
+                <p className="mt-3 text-[12px] leading-5 text-[#66717d]">
+                  <span className="font-bold">
+                    Učionica:
+                  </span>{" "}
+                  {ucionica?.naziv ??
+                    "Nije dodijeljena"}
+                </p>
+
+                <p className="mt-1 text-[12px] leading-5 text-[#66717d]">
+                  <span className="font-bold">
+                    Skupina:
+                  </span>{" "}
+                  {
+                    predavanje.skupina_naziv
+                  }
+                </p>
+
+                <p className="mt-1 text-[12px] leading-5 text-[#66717d]">
+                  <span className="font-bold">
+                    Profesor:
+                  </span>{" "}
+                  {
+                    predavanje.profesor_naziv
+                  }
+                </p>
+              </div>
+            );
+          }
+        )}
+      </div>
+    );
   }
 
   async function spremiUcionicu(
@@ -557,6 +1485,352 @@ export default function UcionicePage() {
             {uspjeh}
           </div>
         )}
+
+        <section className="mt-7 overflow-hidden rounded-[24px] border border-[#dfe5ea] bg-white shadow-[0_6px_20px_rgba(23,50,77,0.04)]">
+          <div className="border-b border-[#e7ebee] px-5 py-5 md:px-6">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+                    <CalendarDays
+                      size={20}
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-[#c9252d]">
+                      {prikazZauzetosti ===
+                      "dan"
+                        ? "Dnevni pregled"
+                        : "Tjedni pregled"}
+                    </p>
+
+                    <h2 className="mt-0.5 text-[21px] font-extrabold text-[#17202a]">
+                      Zauzetost učionica
+                    </h2>
+                  </div>
+                </div>
+
+                <p className="mt-3 max-w-2xl text-[14px] leading-6 text-[#66717d]">
+                  Grafički pregled planiranih i održanih termina.
+                  Otkazana predavanja ne računaju se kao zauzeće.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:items-end">
+                <div className="inline-flex self-start rounded-xl border border-[#d6dde3] bg-[#f7f9fa] p-1 sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPrikazZauzetosti(
+                        "dan"
+                      )
+                    }
+                    className={`min-h-[38px] rounded-lg px-4 text-[13px] font-bold transition ${
+                      prikazZauzetosti ===
+                      "dan"
+                        ? "bg-[#17324d] text-white shadow-sm"
+                        : "text-[#52606d] hover:bg-white"
+                    }`}
+                  >
+                    Dnevni
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPrikazZauzetosti(
+                        "tjedan"
+                      )
+                    }
+                    className={`min-h-[38px] rounded-lg px-4 text-[13px] font-bold transition ${
+                      prikazZauzetosti ===
+                      "tjedan"
+                        ? "bg-[#17324d] text-white shadow-sm"
+                        : "text-[#52606d] hover:bg-white"
+                    }`}
+                  >
+                    Tjedni
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      pomakniRazdoblje(
+                        -1
+                      )
+                    }
+                    className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d6dde3] bg-white text-[#17324d] transition hover:bg-[#f4f6f8]"
+                    aria-label={
+                      prikazZauzetosti ===
+                      "dan"
+                        ? "Prethodni dan"
+                        : "Prethodni tjedan"
+                    }
+                  >
+                    <ChevronLeft
+                      size={19}
+                    />
+                  </button>
+
+                  <input
+                    type="date"
+                    value={
+                      odabraniDatum
+                    }
+                    onChange={(e) => {
+                      if (
+                        e.target.value
+                      ) {
+                        setOdabraniDatum(
+                          e.target.value
+                        );
+                      }
+                    }}
+                    className="min-h-[44px] rounded-xl border border-[#d6dde3] bg-white px-3 text-[14px] font-semibold text-[#17202a] outline-none transition focus:border-[#17324d] focus:ring-2 focus:ring-[#17324d]/10"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      pomakniRazdoblje(
+                        1
+                      )
+                    }
+                    className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d6dde3] bg-white text-[#17324d] transition hover:bg-[#f4f6f8]"
+                    aria-label={
+                      prikazZauzetosti ===
+                      "dan"
+                        ? "Sljedeći dan"
+                        : "Sljedeći tjedan"
+                    }
+                  >
+                    <ChevronRight
+                      size={19}
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOdabraniDatum(
+                        danasLokalno()
+                      )
+                    }
+                    className="min-h-[44px] rounded-xl bg-[#17324d] px-4 text-[13px] font-bold text-white transition hover:bg-[#102437]"
+                  >
+                    {prikazZauzetosti ===
+                    "dan"
+                      ? "Danas"
+                      : "Ovaj tjedan"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-4 text-[15px] font-bold capitalize text-[#17202a]">
+              {prikazZauzetosti ===
+              "dan"
+                ? formatPuniDatum(
+                    odabraniDatum
+                  )
+                : formatRasponTjedna(
+                    odabraniDatum
+                  )}
+            </p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-[16px] border border-[#dfe5ea] bg-[#f8fafb] px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8b949e]">
+                  Aktivne učionice
+                </p>
+
+                <p className="mt-1 text-[22px] font-extrabold text-[#17202a]">
+                  {
+                    aktivneUcionice.length
+                  }
+                </p>
+              </div>
+
+              <div className="rounded-[16px] border border-[#f0d9dc] bg-[#fff7f7] px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#9c5c61]">
+                  Sa terminima
+                </p>
+
+                <p className="mt-1 text-[22px] font-extrabold text-[#b52027]">
+                  {
+                    zauzeteAktivneUcionice
+                  }
+                </p>
+              </div>
+
+              <div className="rounded-[16px] border border-[#cde5d4] bg-[#f2faf4] px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#557260]">
+                  {prikazZauzetosti ===
+                  "dan"
+                    ? "Slobodne cijeli dan"
+                    : "Bez termina cijeli tjedan"}
+                </p>
+
+                <p className="mt-1 text-[22px] font-extrabold text-[#277442]">
+                  {
+                    slobodneAktivneUcionice
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {greskaZauzetosti && (
+            <div className="mx-5 mt-5 rounded-[16px] border border-[#f2c7ca] bg-[#fff5f5] px-4 py-3 text-[13px] leading-5 text-[#a71d24] md:mx-6">
+              {
+                greskaZauzetosti
+              }
+            </div>
+          )}
+
+          {ucitavanjeZauzetosti ? (
+            <div className="flex min-h-[210px] items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <LoaderCircle
+                  size={28}
+                  className="animate-spin text-[#c9252d]"
+                />
+
+                <p className="text-[14px] font-semibold text-[#66717d]">
+                  Učitavanje zauzetosti...
+                </p>
+              </div>
+            </div>
+          ) : ucionice.length ===
+            0 ? (
+            <div className="px-5 py-8 text-[14px] text-[#66717d] md:px-6">
+              Nema evidentiranih učionica.
+            </div>
+          ) : prikazZauzetosti ===
+            "dan" ? (
+            <div className="px-5 py-5 md:px-6">
+              {prikaziVremenskuTraku(
+                odabraniDatum
+              )}
+
+              {predavanjaDana.length >
+                0 && (
+                <div className="mt-5 border-t border-[#e8ecef] pt-5">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Clock3
+                      size={17}
+                      className="text-[#17324d]"
+                    />
+
+                    <h3 className="text-[15px] font-bold text-[#17202a]">
+                      Termini odabranog dana
+                    </h3>
+                  </div>
+
+                  {prikaziTermine(
+                    predavanjaDana
+                  )}
+                </div>
+              )}
+
+              <p className="mt-5 text-[11px] leading-5 text-[#929ba4]">
+                Graf prikazuje vrijeme od 08:00 do 20:00.
+                Za puni naziv termina prijeđite pokazivačem preko
+                bloka. Na mobitelu se graf može vodoravno pomicati.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-5 px-5 py-5 md:px-6">
+              {odabraniTjedan.map(
+                (
+                  datumTjedna
+                ) => {
+                  const terminiDana =
+                    predavanjaDana.filter(
+                      (
+                        predavanje
+                      ) =>
+                        predavanje.datum ===
+                        datumTjedna
+                    );
+
+                  return (
+                    <section
+                      key={
+                        datumTjedna
+                      }
+                      className="overflow-hidden rounded-[20px] border border-[#dfe5ea] bg-[#fbfcfd]"
+                    >
+                      <div className="flex flex-col gap-2 border-b border-[#e7ebee] bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-[12px] font-bold uppercase tracking-[0.08em] text-[#c9252d]">
+                            {formatKratkiDatum(
+                              datumTjedna
+                            )}
+                          </p>
+
+                          <p className="mt-1 text-[13px] text-[#66717d]">
+                            {terminiDana.length ===
+                            0
+                              ? "Nema termina"
+                              : `${terminiDana.length} ${
+                                  terminiDana.length ===
+                                  1
+                                    ? "termin"
+                                    : "termina"
+                                }`}
+                          </p>
+                        </div>
+
+                        {terminiDana.length ===
+                          0 && (
+                          <span className="inline-flex self-start rounded-full bg-[#edf7f0] px-3 py-1 text-[11px] font-bold text-[#277442] sm:self-auto">
+                            Sve učionice slobodne
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="p-4">
+                        {prikaziVremenskuTraku(
+                          datumTjedna
+                        )}
+
+                        {terminiDana.length >
+                          0 && (
+                          <div className="mt-4 border-t border-[#e8ecef] pt-4">
+                            <div className="mb-3 flex items-center gap-2">
+                              <Clock3
+                                size={16}
+                                className="text-[#17324d]"
+                              />
+
+                              <h3 className="text-[14px] font-bold text-[#17202a]">
+                                Termini
+                              </h3>
+                            </div>
+
+                            {prikaziTermine(
+                              terminiDana
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                  );
+                }
+              )}
+
+              <p className="text-[11px] leading-5 text-[#929ba4]">
+                Tjedni prikaz obuhvaća ponedjeljak do nedjelje.
+                Svaki dan prikazuje zauzetost od 08:00 do 20:00.
+                Otkazana predavanja nisu uključena.
+              </p>
+            </div>
+          )}
+        </section>
 
         <div className="mt-7 grid items-start gap-6 lg:grid-cols-[420px_1fr]">
           <section className="rounded-[24px] border border-[#dfe5ea] bg-white p-5 shadow-[0_6px_20px_rgba(23,50,77,0.04)] lg:sticky lg:top-[96px]">
