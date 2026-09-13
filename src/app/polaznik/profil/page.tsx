@@ -8,6 +8,8 @@ import {
 import {
   ArrowLeft,
   Bell,
+  CalendarDays,
+  GraduationCap,
   LoaderCircle,
   LogOut,
   Mail,
@@ -28,6 +30,13 @@ type Profil = {
   telefon: string | null;
 };
 
+type Obrazovanje = {
+  skupina_id: string;
+  skupina_naziv: string;
+  program_naziv: string;
+  datum_pocetka: string | null;
+};
+
 export default function ProfilPage() {
   const router = useRouter();
 
@@ -35,6 +44,13 @@ export default function ProfilPage() {
     useState<Profil | null>(
       null
     );
+
+  const [
+    obrazovanja,
+    setObrazovanja,
+  ] = useState<Obrazovanje[]>(
+    []
+  );
 
   const [
     ucitavanje,
@@ -110,6 +126,243 @@ export default function ProfilPage() {
         telefon:
           data.telefon,
       });
+
+      const {
+        data:
+          clanstvaData,
+        error:
+          clanstvaError,
+      } = await supabase
+        .from(
+          "clanstva_skupina"
+        )
+        .select(
+          "skupina_id, status"
+        )
+        .eq(
+          "korisnik_id",
+          user.id
+        )
+        .in(
+          "status",
+          [
+            "active",
+            "aktivan",
+          ]
+        );
+
+      if (
+        clanstvaError
+      ) {
+        console.error(
+          "Greška učitavanja članstava:",
+          clanstvaError
+        );
+
+        setGreska(
+          "Profil je učitan, ali podatke o obrazovanju trenutačno nije moguće prikazati."
+        );
+
+        setObrazovanja([]);
+        return;
+      }
+
+      const skupinaIds = [
+        ...new Set(
+          (
+            clanstvaData ??
+            []
+          ).map(
+            (clanstvo) =>
+              clanstvo.skupina_id
+          )
+        ),
+      ];
+
+      if (
+        skupinaIds.length ===
+        0
+      ) {
+        setObrazovanja([]);
+        return;
+      }
+
+      const {
+        data:
+          skupineData,
+        error:
+          skupineError,
+      } = await supabase
+        .from(
+          "obrazovne_skupine"
+        )
+        .select(
+          "id, naziv, program_id, datum_pocetka"
+        )
+        .in(
+          "id",
+          skupinaIds
+        );
+
+      if (
+        skupineError
+      ) {
+        console.error(
+          "Greška učitavanja skupina:",
+          skupineError
+        );
+
+        setGreska(
+          "Profil je učitan, ali podatke o obrazovanju trenutačno nije moguće prikazati."
+        );
+
+        setObrazovanja([]);
+        return;
+      }
+
+      const programIds = [
+        ...new Set(
+          (
+            skupineData ??
+            []
+          )
+            .map(
+              (skupina) =>
+                skupina.program_id
+            )
+            .filter(
+              (
+                programId
+              ): programId is string =>
+                Boolean(
+                  programId
+                )
+            )
+        ),
+      ];
+
+      let programiData:
+        | {
+            id: string;
+            naziv: string;
+          }[]
+        | null = [];
+
+      if (
+        programIds.length >
+        0
+      ) {
+        const {
+          data:
+            ucitaniProgrami,
+          error:
+            programiError,
+        } = await supabase
+          .from(
+            "obrazovni_programi"
+          )
+          .select(
+            "id, naziv"
+          )
+          .in(
+            "id",
+            programIds
+          );
+
+        if (
+          programiError
+        ) {
+          console.error(
+            "Greška učitavanja programa:",
+            programiError
+          );
+
+          setGreska(
+            "Profil je učitan, ali naziv programa trenutačno nije moguće prikazati."
+          );
+
+          setObrazovanja([]);
+          return;
+        }
+
+        programiData =
+          ucitaniProgrami;
+      }
+
+      const programPoId =
+        new Map(
+          (
+            programiData ??
+            []
+          ).map(
+            (program) => [
+              program.id,
+              program.naziv,
+            ]
+          )
+        );
+
+      const novaObrazovanja =
+        (
+          skupineData ??
+          []
+        )
+          .map(
+            (skupina) => ({
+              skupina_id:
+                skupina.id,
+
+              skupina_naziv:
+                skupina.naziv,
+
+              program_naziv:
+                programPoId.get(
+                  skupina.program_id
+                ) ??
+                "Obrazovni program",
+
+              datum_pocetka:
+                skupina.datum_pocetka,
+            })
+          )
+          .sort(
+            (a, b) => {
+              if (
+                !a.datum_pocetka &&
+                !b.datum_pocetka
+              ) {
+                return a.program_naziv.localeCompare(
+                  b.program_naziv,
+                  "hr"
+                );
+              }
+
+              if (
+                !a.datum_pocetka
+              ) {
+                return 1;
+              }
+
+              if (
+                !b.datum_pocetka
+              ) {
+                return -1;
+              }
+
+              return (
+                new Date(
+                  b.datum_pocetka
+                ).getTime() -
+                new Date(
+                  a.datum_pocetka
+                ).getTime()
+              );
+            }
+          );
+
+      setObrazovanja(
+        novaObrazovanja
+      );
     } catch (
       error
     ) {
@@ -126,6 +379,21 @@ export default function ProfilPage() {
         false
       );
     }
+  }
+
+  function formatDatum(
+    datum: string
+  ) {
+    return new Date(
+      datum
+    ).toLocaleDateString(
+      "hr-HR",
+      {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }
+    );
   }
 
   async function odjava() {
@@ -305,6 +573,89 @@ export default function ProfilPage() {
                   </div>
                 </div>
               </div>
+            </section>
+
+            <section className="mt-7">
+              <div className="mb-3 flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d]">
+                  <GraduationCap
+                    size={19}
+                  />
+                </div>
+
+                <div>
+                  <h2 className="text-[18px] font-bold text-[#17202a]">
+                    Moje obrazovanje
+                  </h2>
+
+                  <p className="mt-0.5 text-[13px] text-[#7a8590]">
+                    Program koji trenutačno pohađate
+                  </p>
+                </div>
+              </div>
+
+              {obrazovanja.length >
+              0 ? (
+                <div className="space-y-3">
+                  {obrazovanja.map(
+                    (
+                      obrazovanje
+                    ) => (
+                      <div
+                        key={
+                          obrazovanje.skupina_id
+                        }
+                        className="overflow-hidden rounded-[20px] border border-[#dfe5ea] bg-white shadow-[0_5px_18px_rgba(23,50,77,0.035)]"
+                      >
+                        <div className="p-5">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-[#8b949e]">
+                            Obrazovni program
+                          </p>
+
+                          <p className="mt-1 text-[17px] font-extrabold leading-6 text-[#17202a]">
+                            {
+                              obrazovanje.program_naziv
+                            }
+                          </p>
+
+                          <p className="mt-1 text-[13px] leading-5 text-[#7a8590]">
+                            Skupina:{" "}
+                            {
+                              obrazovanje.skupina_naziv
+                            }
+                          </p>
+                        </div>
+
+                        <div className="flex items-start gap-3 border-t border-[#e8ecef] bg-[#f8fafb] px-5 py-4">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#17324d] shadow-sm">
+                            <CalendarDays
+                              size={18}
+                            />
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-[#8b949e]">
+                              Datum početka obrazovanja
+                            </p>
+
+                            <p className="mt-1 text-[15px] font-semibold text-[#28333e]">
+                              {obrazovanje.datum_pocetka
+                                ? formatDatum(
+                                    obrazovanje.datum_pocetka
+                                  )
+                                : "Nije upisan"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-[20px] border border-[#dfe5ea] bg-white px-5 py-5 text-[14px] leading-6 text-[#66717d]">
+                  Trenutačno nema evidentiranog aktivnog obrazovnog programa.
+                </div>
+              )}
             </section>
 
             {greska && (
