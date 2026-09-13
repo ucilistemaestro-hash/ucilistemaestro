@@ -129,34 +129,19 @@ export default function ProfilPage() {
 
       const {
         data:
-          clanstvaData,
+          obrazovanjaData,
         error:
-          clanstvaError,
-      } = await supabase
-        .from(
-          "clanstva_skupina"
-        )
-        .select(
-          "skupina_id, status"
-        )
-        .eq(
-          "korisnik_id",
-          user.id
-        )
-        .in(
-          "status",
-          [
-            "active",
-            "aktivan",
-          ]
-        );
+          obrazovanjaError,
+      } = await supabase.rpc(
+        "moje_obrazovanje"
+      );
 
       if (
-        clanstvaError
+        obrazovanjaError
       ) {
         console.error(
-          "Greška učitavanja članstava:",
-          clanstvaError
+          "Greška učitavanja obrazovanja:",
+          obrazovanjaError
         );
 
         setGreska(
@@ -166,202 +151,12 @@ export default function ProfilPage() {
         setObrazovanja([]);
         return;
       }
-
-      const skupinaIds = [
-        ...new Set(
-          (
-            clanstvaData ??
-            []
-          ).map(
-            (clanstvo) =>
-              clanstvo.skupina_id
-          )
-        ),
-      ];
-
-      if (
-        skupinaIds.length ===
-        0
-      ) {
-        setObrazovanja([]);
-        return;
-      }
-
-      const {
-        data:
-          skupineData,
-        error:
-          skupineError,
-      } = await supabase
-        .from(
-          "obrazovne_skupine"
-        )
-        .select(
-          "id, naziv, program_id, datum_pocetka"
-        )
-        .in(
-          "id",
-          skupinaIds
-        );
-
-      if (
-        skupineError
-      ) {
-        console.error(
-          "Greška učitavanja skupina:",
-          skupineError
-        );
-
-        setGreska(
-          "Profil je učitan, ali podatke o obrazovanju trenutačno nije moguće prikazati."
-        );
-
-        setObrazovanja([]);
-        return;
-      }
-
-      const programIds = [
-        ...new Set(
-          (
-            skupineData ??
-            []
-          )
-            .map(
-              (skupina) =>
-                skupina.program_id
-            )
-            .filter(
-              (
-                programId
-              ): programId is string =>
-                Boolean(
-                  programId
-                )
-            )
-        ),
-      ];
-
-      let programiData:
-        | {
-            id: string;
-            naziv: string;
-          }[]
-        | null = [];
-
-      if (
-        programIds.length >
-        0
-      ) {
-        const {
-          data:
-            ucitaniProgrami,
-          error:
-            programiError,
-        } = await supabase
-          .from(
-            "obrazovni_programi"
-          )
-          .select(
-            "id, naziv"
-          )
-          .in(
-            "id",
-            programIds
-          );
-
-        if (
-          programiError
-        ) {
-          console.error(
-            "Greška učitavanja programa:",
-            programiError
-          );
-
-          setGreska(
-            "Profil je učitan, ali naziv programa trenutačno nije moguće prikazati."
-          );
-
-          setObrazovanja([]);
-          return;
-        }
-
-        programiData =
-          ucitaniProgrami;
-      }
-
-      const programPoId =
-        new Map(
-          (
-            programiData ??
-            []
-          ).map(
-            (program) => [
-              program.id,
-              program.naziv,
-            ]
-          )
-        );
-
-      const novaObrazovanja =
-        (
-          skupineData ??
-          []
-        )
-          .map(
-            (skupina) => ({
-              skupina_id:
-                skupina.id,
-
-              skupina_naziv:
-                skupina.naziv,
-
-              program_naziv:
-                programPoId.get(
-                  skupina.program_id
-                ) ??
-                "Obrazovni program",
-
-              datum_pocetka:
-                skupina.datum_pocetka,
-            })
-          )
-          .sort(
-            (a, b) => {
-              if (
-                !a.datum_pocetka &&
-                !b.datum_pocetka
-              ) {
-                return a.program_naziv.localeCompare(
-                  b.program_naziv,
-                  "hr"
-                );
-              }
-
-              if (
-                !a.datum_pocetka
-              ) {
-                return 1;
-              }
-
-              if (
-                !b.datum_pocetka
-              ) {
-                return -1;
-              }
-
-              return (
-                new Date(
-                  b.datum_pocetka
-                ).getTime() -
-                new Date(
-                  a.datum_pocetka
-                ).getTime()
-              );
-            }
-          );
 
       setObrazovanja(
-        novaObrazovanja
+        (
+          obrazovanjaData ??
+          []
+        ) as Obrazovanje[]
       );
     } catch (
       error
