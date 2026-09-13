@@ -1155,6 +1155,27 @@ export default function SkupinePage() {
                           <button
                             type="button"
                             onClick={() =>
+                              router.push(
+                                `/admin/skupine/${skupina.id}/polaznici`
+                              )
+                            }
+                            disabled={
+                              brisanjeUTijeku !==
+                                null ||
+                              spremanje
+                            }
+                            className="flex min-h-[42px] items-center gap-2 rounded-xl border border-[#cdd9e2] bg-white px-3.5 text-[13px] font-bold text-[#17324d] transition hover:bg-[#f4f7f9] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Users
+                              size={16}
+                            />
+
+                            Polaznici
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
                               pokreniUredivanje(
                                 skupina
                               )
