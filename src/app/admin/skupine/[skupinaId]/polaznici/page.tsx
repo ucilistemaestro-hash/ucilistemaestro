@@ -204,6 +204,13 @@ export default function PolazniciSkupinePage() {
           .eq(
             "skupina_id",
             skupinaId
+          )
+          .in(
+            "status",
+            [
+              "active",
+              "aktivan",
+            ]
           ),
       ]);
 
