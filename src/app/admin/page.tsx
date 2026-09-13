@@ -664,6 +664,76 @@ export default function AdminPage() {
         )}
 
         <section className="mt-8">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#17324d] text-white">
+              <School
+                size={20}
+              />
+            </div>
+
+            <div>
+              <h2 className="text-[20px] font-bold text-[#17202a]">
+                Upravljanje Učilištem
+              </h2>
+
+              <p className="mt-0.5 text-[14px] text-[#66717d]">
+                Odaberite modul koji želite otvoriti.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {moduli.map(
+              (modul) => {
+                const Ikona =
+                  modul.Ikona;
+
+                return (
+                  <button
+                    key={
+                      modul.putanja
+                    }
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        modul.putanja
+                      )
+                    }
+                    className="group flex min-h-[168px] w-full flex-col items-start rounded-[22px] border border-[#dfe5ea] bg-white p-5 text-left shadow-[0_5px_18px_rgba(23,50,77,0.04)] transition hover:-translate-y-0.5 hover:border-[#cbd4dc] hover:shadow-[0_8px_24px_rgba(23,50,77,0.08)]"
+                  >
+                    <div className="flex w-full items-start justify-between gap-4">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d] transition group-hover:bg-[#17324d] group-hover:text-white">
+                        <Ikona
+                          size={21}
+                        />
+                      </div>
+
+                      <ChevronRight
+                        size={20}
+                        className="mt-1 text-[#a2aab2] transition group-hover:translate-x-0.5 group-hover:text-[#17324d]"
+                      />
+                    </div>
+
+                    <h3 className="mt-5 text-[18px] font-bold text-[#17202a]">
+                      {
+                        modul.naziv
+                      }
+                    </h3>
+
+                    <p className="mt-2 text-[14px] leading-6 text-[#66717d]">
+                      {
+                        modul.opis
+                      }
+                    </p>
+                  </button>
+                );
+              }
+            )}
+          </div>
+        </section>
+
+
+        <section className="mt-8">
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#c9252d]">
@@ -1010,75 +1080,6 @@ export default function AdminPage() {
           </div>
 
 
-        </section>
-
-        <section className="mt-8">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#17324d] text-white">
-              <School
-                size={20}
-              />
-            </div>
-
-            <div>
-              <h2 className="text-[20px] font-bold text-[#17202a]">
-                Upravljanje Učilištem
-              </h2>
-
-              <p className="mt-0.5 text-[14px] text-[#66717d]">
-                Odaberite modul koji želite otvoriti.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {moduli.map(
-              (modul) => {
-                const Ikona =
-                  modul.Ikona;
-
-                return (
-                  <button
-                    key={
-                      modul.putanja
-                    }
-                    type="button"
-                    onClick={() =>
-                      router.push(
-                        modul.putanja
-                      )
-                    }
-                    className="group flex min-h-[168px] w-full flex-col items-start rounded-[22px] border border-[#dfe5ea] bg-white p-5 text-left shadow-[0_5px_18px_rgba(23,50,77,0.04)] transition hover:-translate-y-0.5 hover:border-[#cbd4dc] hover:shadow-[0_8px_24px_rgba(23,50,77,0.08)]"
-                  >
-                    <div className="flex w-full items-start justify-between gap-4">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#eef3f7] text-[#17324d] transition group-hover:bg-[#17324d] group-hover:text-white">
-                        <Ikona
-                          size={21}
-                        />
-                      </div>
-
-                      <ChevronRight
-                        size={20}
-                        className="mt-1 text-[#a2aab2] transition group-hover:translate-x-0.5 group-hover:text-[#17324d]"
-                      />
-                    </div>
-
-                    <h3 className="mt-5 text-[18px] font-bold text-[#17202a]">
-                      {
-                        modul.naziv
-                      }
-                    </h3>
-
-                    <p className="mt-2 text-[14px] leading-6 text-[#66717d]">
-                      {
-                        modul.opis
-                      }
-                    </p>
-                  </button>
-                );
-              }
-            )}
-          </div>
         </section>
 
         <section className="mt-8 overflow-hidden rounded-[22px] border border-[#dfe5ea] bg-white shadow-[0_4px_16px_rgba(23,50,77,0.03)]">
